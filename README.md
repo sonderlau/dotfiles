@@ -1,65 +1,37 @@
-# MacOS
-My configuration for MacOS (in the future)
+# dotfiles
 
+My macOS configuration, synced into version control.
 
+## Usage
 
-Next year (2023), I will change my laptop to MacBook, and this repo is my preparation for improve my QoL in MacOS.
+```sh
+./sync
+```
 
+Every run shows a tree preview of the resulting repo, then asks for confirmation before syncing. Incremental — only changed files are copied.
 
+## Config
 
-Check my github star list [here](https://github.com/stars/sonderlau/lists/macos)
+Edit `dotfiles.conf`:
 
+```text
+# Absolute paths (~ expanded), one per line
+# Indented lines starting with ! are exclude patterns
 
+~/.zshrc
 
-## App
+~/.config/nvim
+  !.git
+  !.DS_Store
+  !lazy-lock.json
 
-- Wechat
-- TIM
-- VS Code
-- Python
-- Anaconda
-- Chrome
-- shottr.cc
-- Rayon
-- DevToysMac
-- Clover
-- Rayons
-- Numi
-- iGlance
-- m-cli
-- QuestDB
-- Vienna-RSS
-- tabby
-- 小组件盒子
-- warp
-- PeaZip
-- croc
-- Dash
-- Pretty Clean
-- Proxyman
-- Modern Unix (Github)
-- Orion
-- xbin.io
-- Asciinema
-- Rectangle
-- https://www.optimusplayer.com
-- Karabiner-Elements
-- musescore
-- Paw
-- Numi
-- Loop back
-- XMind
-- Amphetamine
-- https://vytal.io/
-- https://arctype.com/
-- MD Vinyl
-- https://insomnia.rest/
-- https://httpie.io/
-- https://weechat.org/
-- https://aegi.vmoe.info/
-- https://lunar.fyi/
-- https://ezip.awehunt.com/
-- https://www.mowglii.com/itsycal/
-- https://mos.caldis.me/
-- https://www.bernhard-baehr.de/
-- https://rustdesk.com/zh/
+~/.config/karabiner
+  !automatic_backups
+```
+
+Destination is derived automatically by stripping the `$HOME/` prefix.
+For directories, `rsync --delete` keeps the repo copy in sync — removed source files get cleaned up.
+
+## macOS setup
+
+`Commands.sh` has one-time `defaults write` commands for keyboard repeat rate, hidden files, etc. Run manually after a fresh install.
