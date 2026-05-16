@@ -1,0 +1,131 @@
+#!/bin/bash
+set -eo pipefail
+
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG="$REPO_DIR/dotfiles.conf"
+[ -n "${1:-}" ] && CONFIG="$1"
+
+# --- Parse config ---
+entries=()
+current=""
+current_exc=""
+
+flush() {
+  [ -z "$current" ] && return
+  entries+=("${current}${current_exc}")
+  current=""
+  current_exc=""
+}
+
+while IFS= read -r line || [ -n "$line" ]; do
+  stripped="${line#"${line%%[![:space:]]*}"}"
+  [ -z "$stripped" ] && continue
+  [[ "$stripped" == \#* ]] && continue
+
+  if [[ "$line" =~ ^[[:space:]] ]]; then
+    current_exc="${current_exc}|${stripped#!}"
+  else
+    flush
+    current="${stripped/#\~/$HOME}"
+  fi
+done < "$CONFIG"
+flush
+
+# --- Derive repo destination from source path ---
+dest_for() {
+  local src="$1"
+  if [[ "$src" == "$HOME/"* ]]; then
+    echo "${src#$HOME/}"
+  else
+    echo "${src#/}"
+  fi
+}
+
+# --- Build preview in temp dir ---
+preview_dir=$(mktemp -d)
+trap 'rm -rf "$preview_dir"' EXIT
+
+for entry in "${entries[@]}"; do
+  path="${entry%%|*}"
+  exc_str="${entry#*|}"
+  [ "$exc_str" = "$path" ] && exc_str=""
+  dest="$(dest_for "$path")"
+
+  if [ ! -e "$path" ]; then
+    continue
+  fi
+
+  args=(rsync -a --delete)
+  if [ -n "$exc_str" ]; then
+    IFS='|' read -ra patterns <<< "$exc_str"
+    for p in "${patterns[@]+"${patterns[@]}"}"; do
+      [ -n "$p" ] && args+=(--exclude "$p")
+    done
+  fi
+
+  target="$preview_dir/$dest"
+  if [ -d "$path" ]; then
+    mkdir -p "$target"
+    args+=("$path/" "$target/")
+  else
+    mkdir -p "$(dirname "$target")"
+    args+=("$path" "$target")
+  fi
+
+  "${args[@]}"
+done
+
+# --- Show preview ---
+echo ""
+eza --tree --icons --all --color=always --group-directories-first "$preview_dir" \
+  | sed "1s|.*|  dotfiles/|; 2,\$s/^/  /"
+echo ""
+
+file_count=$(find "$preview_dir" -type f | wc -l | tr -d ' ')
+echo "  $file_count file(s) will be synced."
+echo ""
+
+# --- Confirm ---
+printf "  Proceed? [y/N] "
+read -r answer
+if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+  echo "  Aborted."
+  exit 0
+fi
+
+# --- Sync for real ---
+echo ""
+for entry in "${entries[@]}"; do
+  path="${entry%%|*}"
+  exc_str="${entry#*|}"
+  [ "$exc_str" = "$path" ] && exc_str=""
+  dest="$(dest_for "$path")"
+
+  if [ ! -e "$path" ]; then
+    echo "  skip: $path (not found)"
+    continue
+  fi
+
+  args=(rsync -a --delete)
+  if [ -n "$exc_str" ]; then
+    IFS='|' read -ra patterns <<< "$exc_str"
+    for p in "${patterns[@]+"${patterns[@]}"}"; do
+      [ -n "$p" ] && args+=(--exclude "$p")
+    done
+  fi
+
+  target="$REPO_DIR/$dest"
+  if [ -d "$path" ]; then
+    mkdir -p "$target"
+    args+=("$path/" "$target/")
+  else
+    mkdir -p "$(dirname "$target")"
+    args+=("$path" "$target")
+  fi
+
+  "${args[@]}"
+  echo "  ok: $path"
+done
+
+echo ""
+echo "  Done."
