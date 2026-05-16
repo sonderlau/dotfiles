@@ -1,0 +1,6 @@
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "theme": "warm-burnout",
+  "keybinds": {},
+  "plugin": ["oh-my-opencode-slim"]
+}

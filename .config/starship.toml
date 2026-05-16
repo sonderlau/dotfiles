@@ -1,0 +1,70 @@
+
+ # 启用此选项以获得编辑器的配置补全支持
+ "$schema" = 'https://starship.rs/config-schema.json'
+
+ # 1. 整体布局：使用 $line_break 保证无论上一行显示什么，都能精确单行换行
+ format = "$directory$git_branch$git_status$all$line_break$character"
+ add_newline = true
+
+ # =========================
+ # 基础路径与 Git 配置
+ # =========================
+ [directory]
+ format = "[$path]($style) "
+ style = "bold #8aadf4"
+ truncation_length = 3
+ truncate_to_repo = false
+
+ [git_branch]
+ format = "on [$symbol$branch]($style) "
+ symbol = " "
+ style = "bold #c6a0f6"
+
+ [git_status]
+ format = "([$all_status$ahead_behind]($style) )"
+ style = "bold #ed8796"
+ # 加入 $count 变量显示具体数量
+ untracked = '\[? $count\]'
+ modified = '\[! $count\]'
+ staged = '\[+ $count\]'
+ deleted = '\[- $count\]'
+ conflicted = '\[= $count\]'
+ # 对于落后/超前的提交，也可以加入数字
+ ahead = "⇡$count "
+ behind = "⇣$count "
+ diverged = "⇕ ⇡$ahead_count ⇣$behind_count "
+
+ [character]
+ # 使用 Nerd Font 的小幽灵图标
+ success_symbol = "[󰊠](#a6da95) [❯](#f5a97f)"
+ error_symbol = "[󰊠](#ed8796) [❯](#ed8796)"
+
+
+ [python]
+ # 恢复之前的暗淡颜色配置，让 (base) 不那么抢眼
+ format = "via [$symbol$version]($style)[ \\($virtualenv\\)](#a5adce) "
+ symbol = "󰌠 "
+ style = "bold #f9e2af"
+ # 核心魔法：禁止 Starship 仅仅因为你在虚拟环境中就触发显示
+ # 它现在只会在检测到 .py, pyproject.toml 等文件时才会亮起
+ detect_env_vars = []
+
+ [rust]
+ format = "via [$symbol$version]($style) "
+ symbol = " "
+ style = "bold #ed8796"
+
+ [golang]
+ format = "via [$symbol$version]($style) "
+ symbol = " "
+ style = "bold #8bd5ca"
+
+ [nodejs]
+ format = "via [$symbol$version]($style) "
+ symbol = " "
+ style = "bold #a6da95"
+
+ [bun]
+ format = "via [$symbol$version]($style) "
+ symbol = " "
+ style = "bold #f5bde6"

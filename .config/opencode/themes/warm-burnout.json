@@ -1,0 +1,251 @@
+{
+  "$schema": "https://opencode.ai/theme.json",
+  "defs": {
+    "wbBg": "#1a1510",
+    "wbPanelBg": "#1f1b15",
+    "wbEditorBg": "#24201a",
+    "wbBorder": "#2e2a24",
+    "wbBorderActive": "#3d3830",
+    "wbFg": "#bfbdb6",
+    "wbUiFg": "#8a8680",
+    "wbKeyword": "#ff8f40",
+    "wbFunc": "#ffb454",
+    "wbOperator": "#f29668",
+    "wbDecorator": "#e6c08a",
+    "wbType": "#90aec0",
+    "wbString": "#b4bc78",
+    "wbRegex": "#96b898",
+    "wbConstant": "#d4a8b8",
+    "wbTag": "#dc9e92",
+    "wbMember": "#ec9878",
+    "wbComment": "#b4a89c",
+    "wbError": "#f49090",
+    "wbCssProp": "#deb074"
+  },
+  "theme": {
+    "primary": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "secondary": {
+      "dark": "wbType",
+      "light": "wbType"
+    },
+    "accent": {
+      "dark": "wbDecorator",
+      "light": "wbDecorator"
+    },
+    "error": {
+      "dark": "wbError",
+      "light": "wbError"
+    },
+    "warning": {
+      "dark": "wbKeyword",
+      "light": "wbKeyword"
+    },
+    "success": {
+      "dark": "wbString",
+      "light": "wbString"
+    },
+    "info": {
+      "dark": "wbType",
+      "light": "wbType"
+    },
+    "text": {
+      "dark": "wbFg",
+      "light": "wbUiFg"
+    },
+    "textMuted": {
+      "dark": "wbUiFg",
+      "light": "#6c6862"
+    },
+    "background": {
+      "dark": "wbBg",
+      "light": "wbFg"
+    },
+    "backgroundPanel": {
+      "dark": "wbPanelBg",
+      "light": "#6c6862"
+    },
+    "backgroundElement": {
+      "dark": "wbEditorBg",
+      "light": "wbUiFg"
+    },
+    "border": {
+      "dark": "wbBorder",
+      "light": "#6c6862"
+    },
+    "borderActive": {
+      "dark": "wbBorderActive",
+      "light": "wbFunc"
+    },
+    "borderSubtle": {
+      "dark": "wbBorder",
+      "light": "#6c6862"
+    },
+    "diffAdded": {
+      "dark": "#a0c080",
+      "light": "#a0c080"
+    },
+    "diffRemoved": {
+      "dark": "#e88080",
+      "light": "#e88080"
+    },
+    "diffContext": {
+      "dark": "wbComment",
+      "light": "wbComment"
+    },
+    "diffHunkHeader": {
+      "dark": "wbUiFg",
+      "light": "wbUiFg"
+    },
+    "diffHighlightAdded": {
+      "dark": "#a0c080",
+      "light": "#a0c080"
+    },
+    "diffHighlightRemoved": {
+      "dark": "#e88080",
+      "light": "#e88080"
+    },
+    "diffAddedBg": {
+      "dark": "#1a2618",
+      "light": "#e4f0fb"
+    },
+    "diffRemovedBg": {
+      "dark": "#2a1a1a",
+      "light": "#fbe4e4"
+    },
+    "diffContextBg": {
+      "dark": "wbEditorBg",
+      "light": "#6c6862"
+    },
+    "diffLineNumber": {
+      "dark": "#6c6862",
+      "light": "wbUiFg"
+    },
+    "diffAddedLineNumberBg": {
+      "dark": "#1a2618",
+      "light": "#e4f0fb"
+    },
+    "diffRemovedLineNumberBg": {
+      "dark": "#2a1a1a",
+      "light": "#fbe4e4"
+    },
+    "markdownText": {
+      "dark": "wbFg",
+      "light": "wbUiFg"
+    },
+    "markdownHeading": {
+      "dark": "wbKeyword",
+      "light": "wbKeyword"
+    },
+    "markdownLink": {
+      "dark": "wbType",
+      "light": "wbType"
+    },
+    "markdownLinkText": {
+      "dark": "wbString",
+      "light": "wbString"
+    },
+    "markdownCode": {
+      "dark": "wbString",
+      "light": "wbString"
+    },
+    "markdownBlockQuote": {
+      "dark": "wbComment",
+      "light": "wbComment"
+    },
+    "markdownEmph": {
+      "dark": "wbMember",
+      "light": "wbMember"
+    },
+    "markdownStrong": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "markdownHorizontalRule": {
+      "dark": "wbBorder",
+      "light": "#6c6862"
+    },
+    "markdownListItem": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "markdownListEnumeration": {
+      "dark": "wbDecorator",
+      "light": "wbDecorator"
+    },
+    "markdownImage": {
+      "dark": "wbConstant",
+      "light": "wbConstant"
+    },
+    "markdownImageText": {
+      "dark": "wbString",
+      "light": "wbString"
+    },
+    "markdownCodeBlock": {
+      "dark": "wbFg",
+      "light": "wbUiFg"
+    },
+    "syntaxComment": {
+      "dark": "wbComment",
+      "light": "wbComment"
+    },
+    "syntaxKeyword": {
+      "dark": "wbKeyword",
+      "light": "wbKeyword"
+    },
+    "syntaxFunction": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "syntaxVariable": {
+      "dark": "wbTag",
+      "light": "wbTag"
+    },
+    "syntaxString": {
+      "dark": "wbString",
+      "light": "wbString"
+    },
+    "syntaxNumber": {
+      "dark": "wbConstant",
+      "light": "wbConstant"
+    },
+    "syntaxType": {
+      "dark": "wbType",
+      "light": "wbType"
+    },
+    "syntaxOperator": {
+      "dark": "wbOperator",
+      "light": "wbOperator"
+    },
+    "syntaxPunctuation": {
+      "dark": "wbFg",
+      "light": "wbUiFg"
+    },
+    "inputBackground": {
+      "dark": "wbEditorBg",
+      "light": "wbFg"
+    },
+    "InputBorder": {
+      "dark": "wbBorder",
+      "light": "#6c6862"
+    },
+    "InputBorderActive": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "inputPrompt": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "inputCursor": {
+      "dark": "wbFunc",
+      "light": "wbFunc"
+    },
+    "inputText": {
+      "dark": "wbFg",
+      "light": "wbUiFg"
+    }
+  }
+}

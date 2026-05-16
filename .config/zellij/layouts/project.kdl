@@ -1,0 +1,11 @@
+layout {
+    default_tab_template {
+        children
+    }
+    tab name="Editor" {
+        pane
+    }
+    tab name="Shell" {
+        pane
+    }
+}

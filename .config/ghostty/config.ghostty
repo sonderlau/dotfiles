@@ -1,0 +1,138 @@
+# This is the configuration file for Ghostty.
+#
+# This template file has been automatically created at the following
+# path since Ghostty couldn't find any existing config files on your system:
+#
+#   /Users/sonderlau/Library/Application Support/com.mitchellh.ghostty/config
+#
+# The template does not set any default options, since Ghostty ships
+# with sensible defaults for all options. Users should only need to set
+# options that they want to change from the default.
+#
+# Run `ghostty +show-config --default --docs` to view a list of
+# all available config options and their default values.
+#
+# Additionally, each config option is also explained in detail
+# on Ghostty's website, at https://ghostty.org/docs/config.
+#
+# Ghostty can reload the configuration while running by using the menu
+# options or the bound key (default: Command + Shift + comma on macOS and
+# Control + Shift + comma on other platforms). Not all config options can be
+# reloaded while running; some only apply to new windows and others may require
+# a full restart to take effect.
+
+# Config syntax crash course
+# ==========================
+# # The config file consists of simple key-value pairs,
+# # separated by equals signs.
+# font-family = Iosevka
+# window-padding-x = 2
+#
+# # Spacing around the equals sign does not matter.
+# # All of these are identical:
+# key=value
+# key= value
+# key =value
+# key = value
+#
+# # Any line beginning with a # is a comment. It's not possible to put
+# # a comment after a config option, since it would be interpreted as a
+# # part of the value. For example, this will have a value of "#123abc":
+# background = #123abc
+#
+# # Empty values are used to reset config keys to default.
+# key =
+#
+# # Some config options have unique syntaxes for their value,
+# # which is explained in the docs for that config option.
+# # Just for example:
+# resize-overlay-duration = 4s 200ms
+
+theme = Kanagawa Wave
+
+# Typography
+font-family = Maple Mono SC NF
+font-size = 14
+font-feature = -dlig
+adjust-cell-height = 6
+
+
+# Window
+window-width = 180
+window-height = 45
+
+# 设置背景透明度 (范围从 0.0 到 1.0，推荐 0.8 到 0.95)
+background-opacity = 0.85
+
+# 设置背景模糊半径 (数值越大背景越模糊，推荐 20 到 40 之间)
+background-blur-radius = 20
+
+# 可选：如果你希望顶部的标题栏也完全融入毛玻璃效果，实现无边框沉浸感
+macos-titlebar-style = transparent
+
+window-padding-x = 14
+window-padding-y = 10
+window-save-state = always
+copy-on-select = true
+
+# --- Performance ---
+scrollback-limit = 25000000
+
+
+# --- Mouse ---
+mouse-hide-while-typing = true
+copy-on-select = clipboard
+
+# --- Close behavior ---
+confirm-close-surface = false
+
+
+# Custom Shaders
+custom-shader = ~/.config/ghostty/shaders/cursor_smear.glsl
+
+# Shell
+shell-integration = zsh
+
+
+
+# --- Keybindings ---
+# macOS option 键行为
+macos-option-as-alt = true
+
+
+# ==========================================
+# 🚫 防冲突屏障：全面解绑 Ghostty 原生快捷键 🚫
+# 为什么要这样做？
+# 因为我们希望所有的 Super (Cmd) 组合键都能原封不动地穿透 Ghostty GUI 层，
+# 直接通过终端协议传递给背后的 Zellij。
+# 如果不显式使用 unbind，macOS 会在 Ghostty 这一层将其拦截，导致 Zellij 毫无反应。
+# ==========================================
+
+# 解绑新建/关闭标签页和窗口
+keybind = super+t=unbind
+keybind = super+n=unbind
+keybind = super+w=unbind
+
+# 解绑所有的分屏操作
+keybind = super+d=unbind
+keybind = super+shift+d=unbind
+keybind = super+enter=unbind
+keybind = super+shift+enter=unbind
+
+# 解绑 1~9 的数字切换（让它们去触发 Zellij 的 GoToTab）
+keybind = super+1=unbind
+keybind = super+2=unbind
+keybind = super+3=unbind
+keybind = super+4=unbind
+keybind = super+5=unbind
+keybind = super+6=unbind
+keybind = super+7=unbind
+keybind = super+8=unbind
+keybind = super+9=unbind
+
+# 保留 Ghostty 自身必须要用到的一点点系统级交互快捷键
+# 热重载配置，方便你在不重启终端的情况下调整字体或 Padding
+keybind = super+shift+r=reload_config
+# 复制和粘贴保留原生行为
+keybind = super+c=copy_to_clipboard
+keybind = super+v=paste_from_clipboard
