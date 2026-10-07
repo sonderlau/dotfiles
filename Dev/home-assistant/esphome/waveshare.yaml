@@ -1,0 +1,915 @@
+# Waveshare ESP32-S3-RLCD-4.2
+# 文档: https://docs.waveshare.net/ESP32-S3-RLCD-4.2/
+#
+# 实测硬件: ESP32-S3 rev v0.2 / 16MB Quad Flash / 8MB Octal PSRAM
+# USB 原生 USB-Serial/JTAG    串口 /dev/cu.usbmodem1101    MAC 94:a9:90:de:d0:cc
+#
+# 刷写:
+#   esphome run --device /dev/cu.usbmodem1101 esphome/waveshare.yaml
+# 之后 OTA:
+#   esphome run esphome/waveshare.yaml
+
+substitutions:
+  device_name: waveshare-rlcd-42
+  friendly_name: ESP32-S3-RLCD-4.2
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.8.0
+  name_add_mac_suffix: false
+  includes_c:
+    - <driver/usb_serial_jtag.h>
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  - source: github://kylehase/ESPHome-ST7305-RLCD
+    components: [st7305_rlcd]
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+  level: INFO
+  logs:
+    component: ERROR
+    pcf85063: INFO
+    sntp: INFO
+    i2c.idf: INFO
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: !secret fallback_password
+
+captive_portal:
+
+globals:
+  - id: pending_out
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: rest_timing
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: rest_started_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+  # 原理图没有 VBUS/STAT 接到 GPIO。充电砖不发 SOF，无法和电池区分。
+  # 没见过 USB 主机时保持外接电源（快刷）；见过主机再断开，才当作电池。
+  - id: on_mains
+    type: bool
+    restore_value: false
+    initial_value: "true"
+  - id: seen_usb_host
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+web_server:
+  port: 80
+
+i2c:
+  sda: GPIO13
+  scl: GPIO14
+  scan: true
+  id: bus_a
+  frequency: 100kHz
+
+spi:
+  clk_pin: GPIO11
+  mosi_pin: GPIO12
+
+time:
+  - platform: pcf85063
+    id: rtc_time
+    timezone: Asia/Shanghai
+    address: 0x51
+    i2c_id: bus_a
+  - platform: sntp
+    id: sntp_time
+    timezone: Asia/Shanghai
+    servers:
+      - ntp.nju.edu.cn
+    update_interval: 24h
+    on_time_sync:
+      then:
+        - logger.log:
+            level: INFO
+            format: "SNTP synced from ntp.nju.edu.cn, writing RTC"
+        - pcf85063.write_time:
+            id: rtc_time
+  - platform: homeassistant
+    id: ha_time
+    timezone: Asia/Shanghai
+    on_time_sync:
+      then:
+        - pcf85063.write_time:
+            id: rtc_time
+
+image:
+  - platform: file
+    file: mdi:thermometer
+    id: ic_temp
+    resize: 20x20
+    type: BINARY
+  - platform: file
+    file: mdi:water-percent
+    id: ic_hum
+    resize: 20x20
+    type: BINARY
+  - platform: file
+    file: mdi:battery
+    id: ic_bat
+    resize: 16x16
+    type: BINARY
+  - platform: file
+    file: mdi:login
+    id: ic_in
+    resize: 20x20
+    type: BINARY
+  - platform: file
+    file: mdi:timer-outline
+    id: ic_elapsed
+    resize: 20x20
+    type: BINARY
+  - platform: file
+    file: mdi:logout
+    id: ic_out
+    resize: 20x20
+    type: BINARY
+  - platform: file
+    file: mdi:logout
+    id: ic_out_lg
+    resize: 28x28
+    type: BINARY
+  - platform: file
+    file: mdi:home
+    id: ic_home
+    resize: 20x20
+    type: BINARY
+  - platform: file
+    file: mdi:home
+    id: ic_home_lg
+    resize: 28x28
+    type: BINARY
+  - platform: file
+    file: mdi:seat-outline
+    id: ic_sit
+    resize: 28x28
+    type: BINARY
+  - platform: file
+    file: mdi:walk
+    id: ic_walk
+    resize: 28x28
+    type: BINARY
+  - platform: file
+    file: mdi:check-bold
+    id: ic_ok
+    resize: 28x28
+    type: BINARY
+  - platform: file
+    file: mdi:weather-sunny
+    id: ic_wx_sun
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-night
+    id: ic_wx_night
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-cloudy
+    id: ic_wx_cloud
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-partly-cloudy
+    id: ic_wx_pcld
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-rainy
+    id: ic_wx_rain
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-pouring
+    id: ic_wx_pour
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-lightning
+    id: ic_wx_storm
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-fog
+    id: ic_wx_fog
+    resize: 32x32
+    type: BINARY
+  - platform: file
+    file: mdi:weather-snowy
+    id: ic_wx_snow
+    resize: 32x32
+    type: BINARY
+
+font:
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 14
+  - file: "gfonts://Roboto"
+    id: font_mid
+    size: 20
+  - file: "gfonts://Roboto@700"
+    id: font_clock
+    size: 26
+  - file: "gfonts://Roboto@700"
+    id: font_warn
+    size: 48
+
+display:
+  - platform: st7305_rlcd
+    model: WAVESHARE_400X300
+    id: rlcd
+    width: 400
+    height: 300
+    cs_pin: GPIO40
+    dc_pin: GPIO5
+    reset_pin: GPIO41
+    data_rate: 1MHz
+    update_interval: never
+    lambda: |-
+      auto now = id(rtc_time).now();
+      if (!now.is_valid()) {
+        now = id(sntp_time).now();
+      }
+
+      auto wx_label = [](const std::string &c) -> const char * {
+        if (c == "sunny") return "sun";
+        if (c == "clear-night") return "night";
+        if (c == "cloudy") return "cloud";
+        if (c == "partlycloudy") return "pcld";
+        if (c == "rainy") return "rain";
+        if (c == "pouring") return "pour";
+        if (c == "lightning" || c == "lightning-rainy") return "storm";
+        if (c == "fog") return "fog";
+        if (c == "snowy" || c == "snowy-rainy") return "snow";
+        if (c == "hail") return "hail";
+        if (c == "windy" || c == "windy-variant") return "wind";
+        if (c.empty() || c == "unknown" || c == "unavailable" || c == "--") return "--";
+        return "wx";
+      };
+
+      // Header 32px: date | time | battery
+      it.filled_rectangle(0, 0, 400, 32);
+      if (now.is_valid()) {
+        it.strftime(10, 16, id(font_small), COLOR_OFF, TextAlign::CENTER_LEFT,
+                    "%m-%d", now);
+        it.strftime(200, 16, id(font_mid), COLOR_OFF, TextAlign::CENTER,
+                    id(on_mains) ? "%H:%M:%S" : "%H:%M", now);
+      }
+      it.print(312, 16, id(font_small), COLOR_OFF, TextAlign::CENTER_RIGHT,
+               id(on_mains) ? "EXT" : "BAT");
+      it.image(320, 8, id(ic_bat), COLOR_OFF, COLOR_ON);
+      if (!isnan(id(bat_level).state)) {
+        it.printf(392, 16, id(font_small), COLOR_OFF, TextAlign::CENTER_RIGHT,
+                  "%.0f%%", id(bat_level).state);
+      }
+
+      // Compact row: temp / humidity / in / on-duty elapsed  (4 x 100px)
+      it.image(8, 44, id(ic_temp));
+      if (isnan(id(temp_sensor).state)) {
+        it.print(32, 54, id(font_mid), TextAlign::CENTER_LEFT, "--°C");
+      } else {
+        it.printf(32, 54, id(font_mid), TextAlign::CENTER_LEFT,
+                  "%.0f°C", id(temp_sensor).state);
+      }
+
+      it.image(108, 44, id(ic_hum));
+      if (isnan(id(hum_sensor).state)) {
+        it.print(132, 54, id(font_mid), TextAlign::CENTER_LEFT, "--%");
+      } else {
+        it.printf(132, 54, id(font_mid), TextAlign::CENTER_LEFT,
+                  "%.0f%%", id(hum_sensor).state);
+      }
+
+      it.image(208, 44, id(ic_in));
+      if (id(ha_clock_in).has_state() && !id(ha_clock_in).state.empty()) {
+        it.print(232, 54, id(font_mid), TextAlign::CENTER_LEFT,
+                 id(ha_clock_in).state.c_str());
+      } else {
+        it.print(232, 54, id(font_mid), TextAlign::CENTER_LEFT, "--:--");
+      }
+
+      bool clocked_out = id(pending_out)
+                         || (id(ha_out_set).has_state() && id(ha_out_set).state);
+      bool in_set = id(ha_in_set).has_state() && id(ha_in_set).state;
+      bool clocked_in = in_set && !clocked_out;
+      bool last_shift_closed = !isnan(id(ha_clock_out_ts).state)
+                               && !isnan(id(ha_clock_in_ts).state)
+                               && id(ha_clock_out_ts).state >= id(ha_clock_in_ts).state;
+      bool show_home = clocked_out || (!clocked_in && last_shift_closed);
+      const char *out_hhmm = nullptr;
+      if (id(ha_clock_out).has_state() && !id(ha_clock_out).state.empty()
+          && id(ha_clock_out).state != "--:--") {
+        out_hhmm = id(ha_clock_out).state.c_str();
+      }
+      if (show_home) {
+        it.image(308, 44, id(ic_home));
+        it.print(332, 54, id(font_mid), TextAlign::CENTER_LEFT,
+                 out_hhmm != nullptr ? out_hhmm : "HOME");
+      } else {
+        it.image(308, 44, id(ic_elapsed));
+        if (isnan(id(work_minutes).state)) {
+          it.print(332, 54, id(font_mid), TextAlign::CENTER_LEFT, "--:--");
+        } else {
+          int mins = (int)id(work_minutes).state;
+          if (mins < 0) {
+            mins = 0;
+          }
+          it.printf(332, 54, id(font_mid), TextAlign::CENTER_LEFT,
+                    "%d:%02d", mins / 60, mins % 60);
+        }
+      }
+
+      // Sit band: HOME (clocked out) / AWAY (on duty, 暂离 30m+) /
+      // REST (short sit-break) / OK (rest done) / UP / sitting
+      bool occupied = id(desk_occupied).has_state() && id(desk_occupied).state;
+      bool sit_on = id(ha_sit_active).has_state() && id(ha_sit_active).state;
+      bool rest_ready = id(ha_rest_ready).has_state() && id(ha_rest_ready).state;
+      bool acked = id(ha_sit_acked).has_state() && id(ha_sit_acked).state;
+      bool away_long = false;
+      if (clocked_in && !occupied && now.is_valid()
+          && !isnan(id(ha_away_since).state)
+          && !isnan(id(ha_clock_in_ts).state)
+          && id(ha_away_since).state >= id(ha_clock_in_ts).state) {
+        float away_sec = now.timestamp - id(ha_away_since).state;
+        float need = id(long_away_min).state * 60.0f;
+        if (isnan(need) || need < 60.0f) {
+          need = 1800.0f;
+        }
+        away_long = away_sec >= need;
+      }
+      bool warn = sit_on && occupied && !acked
+                  && !isnan(id(sit_minutes).state)
+                  && id(sit_minutes).state >= id(sit_warn_min).state;
+      if (show_home) {
+        it.filled_rectangle(0, 80, 400, 76);
+        it.image(16, 104, id(ic_home_lg), COLOR_OFF, COLOR_ON);
+        it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "HOME");
+        if (out_hhmm != nullptr) {
+          it.print(384, 118, id(font_clock), COLOR_OFF, TextAlign::CENTER_RIGHT,
+                   out_hhmm);
+        }
+      } else if (away_long) {
+        it.filled_rectangle(0, 80, 400, 76);
+        it.image(16, 104, id(ic_out_lg), COLOR_OFF, COLOR_ON);
+        it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "AWAY");
+        int away_m = (int) ((now.timestamp - id(ha_away_since).state) / 60.0f);
+        if (away_m < 0) {
+          away_m = 0;
+        }
+        it.printf(384, 118, id(font_clock), COLOR_OFF, TextAlign::CENTER_RIGHT,
+                  "%dm", away_m);
+      } else if (clocked_in && rest_ready && !occupied) {
+        it.filled_rectangle(0, 80, 400, 76);
+        it.image(16, 104, id(ic_ok), COLOR_OFF, COLOR_ON);
+        it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "OK");
+        it.print(384, 118, id(font_mid), COLOR_OFF, TextAlign::CENTER_RIGHT, "SIT");
+      } else if (clocked_in && !occupied && sit_on) {
+        it.image(16, 98, id(ic_walk));
+        it.print(52, 112, id(font_clock), TextAlign::CENTER_LEFT, "REST");
+        int sec = -1;
+        if (id(rest_timing)) {
+          sec = 120 - (int) ((millis() - id(rest_started_ms)) / 1000);
+          if (sec < 0) {
+            sec = 0;
+          }
+        } else if (!isnan(id(rest_remain).state)) {
+          sec = (int) id(rest_remain).state;
+          if (sec < 0) {
+            sec = 0;
+          }
+        }
+        if (sec > 120) {
+          sec = 120;
+        }
+        if (sec >= 0) {
+          it.printf(384, 112, id(font_clock), TextAlign::CENTER_RIGHT,
+                    "%d:%02d", sec / 60, sec % 60);
+        }
+      } else if (warn) {
+        it.filled_rectangle(0, 80, 400, 76);
+        it.image(16, 104, id(ic_walk), COLOR_OFF, COLOR_ON);
+        it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "UP");
+        it.printf(384, 118, id(font_clock), COLOR_OFF, TextAlign::CENTER_RIGHT,
+                  "%.0fm", id(sit_minutes).state);
+      } else {
+        it.line(16, 80, 384, 80);
+        it.image(16, 98, id(ic_sit));
+        if (isnan(id(sit_minutes).state)) {
+          it.print(52, 112, id(font_clock), TextAlign::CENTER_LEFT, "0m");
+        } else {
+          it.printf(52, 112, id(font_clock), TextAlign::CENTER_LEFT,
+                    "%.0fm", id(sit_minutes).state);
+        }
+      }
+
+      // Weather: current | +1h
+      it.line(16, 156, 384, 156);
+      it.print(100, 172, id(font_small), TextAlign::CENTER, "NOW");
+      it.print(300, 172, id(font_small), TextAlign::CENTER, "+1h");
+      it.line(200, 168, 200, 292);
+
+      std::string c0 = id(wx_now).has_state() ? id(wx_now).state : "";
+      std::string c1 = id(wx_1h).has_state() ? id(wx_1h).state : "";
+
+      auto draw_icon = [&](int x, const std::string &c) {
+        if (c.empty() || c == "--" || c == "unknown" || c == "unavailable") return;
+        if (c == "sunny") it.image(x, 188, id(ic_wx_sun));
+        else if (c == "clear-night") it.image(x, 188, id(ic_wx_night));
+        else if (c == "partlycloudy") it.image(x, 188, id(ic_wx_pcld));
+        else if (c == "rainy") it.image(x, 188, id(ic_wx_rain));
+        else if (c == "pouring") it.image(x, 188, id(ic_wx_pour));
+        else if (c == "lightning" || c == "lightning-rainy") it.image(x, 188, id(ic_wx_storm));
+        else if (c == "fog") it.image(x, 188, id(ic_wx_fog));
+        else if (c == "snowy" || c == "snowy-rainy") it.image(x, 188, id(ic_wx_snow));
+        else it.image(x, 188, id(ic_wx_cloud));
+      };
+      draw_icon(84, c0);
+      draw_icon(284, c1);
+
+      it.print(100, 232, id(font_mid), TextAlign::CENTER, wx_label(c0));
+      it.print(300, 232, id(font_mid), TextAlign::CENTER, wx_label(c1));
+
+      if (!isnan(id(wx_now_temp).state)) {
+        it.printf(100, 268, id(font_clock), TextAlign::CENTER, "%.0f°C", id(wx_now_temp).state);
+      } else {
+        it.print(100, 268, id(font_clock), TextAlign::CENTER, "--°C");
+      }
+      if (c1 != "--" && !c1.empty() && !isnan(id(wx_1h_temp).state)) {
+        it.printf(300, 268, id(font_clock), TextAlign::CENTER, "%.0f°C", id(wx_1h_temp).state);
+      } else {
+        it.print(300, 268, id(font_clock), TextAlign::CENTER, "--°C");
+      }
+
+binary_sensor:
+  - platform: template
+    name: USB Host
+    id: usb_host
+    entity_category: diagnostic
+  - platform: template
+    name: External Power
+    id: external_power
+  - platform: status
+    name: Status
+  - platform: gpio
+    id: boot_button
+    name: Boot Button
+    pin:
+      number: GPIO0
+      inverted: true
+      ignore_strapping_warning: true
+      mode:
+        input: true
+        pullup: true
+  - platform: gpio
+    id: key_button
+    name: Key Button
+    pin:
+      number: GPIO18
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      - component.update: rlcd
+  # 打卡键：当天第一次单击=上班，第一次双击=下班（HA 判定是否第一次）
+  - platform: gpio
+    id: ext_button_1
+    name: Button 1
+    pin:
+      number: GPIO1
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_multi_click:
+      - timing:
+          - ON for at most 500ms
+          - OFF for at most 500ms
+          - ON for at most 500ms
+        then:
+          - logger.log:
+              level: INFO
+              format: "attendance clock out"
+          - lambda: id(pending_out) = true;
+          - component.update: rlcd
+          - homeassistant.event:
+              event: esphome.attendance_clock_out
+          - delay: 3s
+          - lambda: |-
+              if (!id(ha_out_set).has_state() || !id(ha_out_set).state) {
+                id(pending_out) = false;
+              }
+          - component.update: rlcd
+      - timing:
+          - ON for at most 500ms
+          - OFF for at least 500ms
+        then:
+          - logger.log:
+              level: INFO
+              format: "attendance clock in"
+          - homeassistant.event:
+              event: esphome.attendance_clock_in
+          - delay: 1s
+          - component.update: rlcd
+  - platform: gpio
+    id: ext_button_2
+    name: Button 2
+    pin:
+      number: GPIO2
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+  - platform: gpio
+    id: ext_button_3
+    name: Button 3
+    pin:
+      number: GPIO17
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+  - platform: homeassistant
+    id: desk_occupied
+    name: Desk Occupied
+    entity_id: binary_sensor.desk_occupied
+    on_state:
+      - lambda: |-
+          static bool was_on = false;
+          bool now_on = id(desk_occupied).state;
+          bool clocked_in = id(ha_in_set).has_state() && id(ha_in_set).state
+                            && !(id(ha_out_set).has_state() && id(ha_out_set).state);
+          if (now_on) {
+            id(rest_timing) = false;
+          } else if (was_on && clocked_in) {
+            id(rest_started_ms) = millis();
+            id(rest_timing) = true;
+          }
+          was_on = now_on;
+      - component.update: rest_remain
+      - component.update: rlcd
+  - platform: homeassistant
+    id: ha_sit_active
+    entity_id: input_boolean.desk_sit_active
+    on_state:
+      - component.update: sit_minutes
+      - component.update: rest_remain
+      - component.update: rlcd
+  - platform: homeassistant
+    id: ha_sit_acked
+    entity_id: input_boolean.desk_sit_warn_acked
+    on_state:
+      - component.update: rlcd
+  - platform: homeassistant
+    id: ha_rest_ready
+    entity_id: input_boolean.desk_rest_ready
+    on_state:
+      - component.update: rlcd
+  - platform: homeassistant
+    id: ha_in_set
+    entity_id: input_boolean.attendance_in_set
+    on_state:
+      - component.update: work_minutes
+      - component.update: rlcd
+  - platform: homeassistant
+    id: ha_out_set
+    entity_id: input_boolean.attendance_out_set
+    on_state:
+      - lambda: |-
+          if (id(ha_out_set).has_state() && id(ha_out_set).state) {
+            id(pending_out) = false;
+          }
+      - component.update: work_minutes
+      - component.update: rlcd
+  - platform: template
+    name: RTC Present
+    id: rtc_present
+    entity_category: diagnostic
+    lambda: |-
+      return !id(rtc_time).is_failed();
+
+button:
+  - platform: restart
+    name: Restart
+  - platform: safe_mode
+    name: Safe Mode
+
+number:
+  - platform: template
+    name: Sit Warn Minutes
+    id: sit_warn_min
+    icon: mdi:timer-alert
+    entity_category: config
+    min_value: 1
+    max_value: 180
+    step: 1
+    initial_value: 45
+    optimistic: true
+    restore_value: true
+    mode: box
+    unit_of_measurement: min
+  - platform: template
+    name: Long Away Minutes
+    id: long_away_min
+    icon: mdi:logout
+    entity_category: config
+    min_value: 5
+    max_value: 180
+    step: 1
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+    mode: box
+    unit_of_measurement: min
+
+sensor:
+  - platform: wifi_signal
+    name: WiFi Signal
+    update_interval: 60s
+  - platform: uptime
+    name: Uptime
+  - platform: internal_temperature
+    name: Internal Temperature
+  - platform: shtcx
+    address: 0x70
+    update_interval: 60s
+    i2c_id: bus_a
+    temperature:
+      name: Temperature
+      id: temp_sensor
+    humidity:
+      name: Humidity
+      id: hum_sensor
+  - platform: adc
+    id: bat_voltage
+    name: Battery Voltage
+    pin: GPIO4
+    attenuation: 12db
+    update_interval: 60s
+    filters:
+      - multiply: 3.0
+  - platform: copy
+    source_id: bat_voltage
+    id: bat_level
+    name: Battery Level
+    unit_of_measurement: "%"
+    filters:
+      - calibrate_linear:
+          - 2.5 -> 0.0
+          - 4.2 -> 100.0
+      - clamp:
+          min_value: 0
+          max_value: 100
+  - platform: homeassistant
+    id: wx_now_temp
+    entity_id: weather.forecast_wo_de_jia
+    attribute: temperature
+  - platform: homeassistant
+    id: wx_1h_temp
+    entity_id: input_number.weather_next_hour_temp
+  - platform: homeassistant
+    id: ha_sit_started
+    entity_id: input_datetime.desk_sit_started
+    attribute: timestamp
+    on_value:
+      - component.update: sit_minutes
+  - platform: homeassistant
+    id: ha_clock_in_ts
+    entity_id: input_datetime.attendance_clock_in
+    attribute: timestamp
+    on_value:
+      - component.update: work_minutes
+  - platform: homeassistant
+    id: ha_clock_out_ts
+    entity_id: input_datetime.attendance_clock_out
+    attribute: timestamp
+    on_value:
+      - component.update: work_minutes
+  - platform: template
+    name: Work Minutes
+    id: work_minutes
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    icon: mdi:briefcase-clock
+    update_interval: 15s
+    lambda: |-
+      if (!id(ha_in_set).has_state() || !id(ha_in_set).state) {
+        return {};
+      }
+      if (isnan(id(ha_clock_in_ts).state)) {
+        return {};
+      }
+      float end_ts = NAN;
+      if (id(ha_out_set).has_state() && id(ha_out_set).state) {
+        end_ts = id(ha_clock_out_ts).state;
+      } else {
+        auto t = id(rtc_time).now();
+        if (!t.is_valid()) {
+          t = id(sntp_time).now();
+        }
+        if (!t.is_valid()) {
+          t = id(ha_time).now();
+        }
+        if (t.is_valid()) {
+          end_ts = t.timestamp;
+        }
+      }
+      if (isnan(end_ts)) {
+        return {};
+      }
+      float mins = (end_ts - id(ha_clock_in_ts).state) / 60.0f;
+      if (mins < 0.0f) {
+        mins = 0.0f;
+      }
+      return mins;
+  - platform: template
+    name: Sit Minutes
+    id: sit_minutes
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    icon: mdi:seat-outline
+    update_interval: 5s
+    on_value:
+      then:
+        - lambda: |-
+            static bool last_warn = false;
+            static int last_shown = -1;
+            if (isnan(x)) {
+              return;
+            }
+            bool acked = id(ha_sit_acked).has_state() && id(ha_sit_acked).state;
+            bool warn = !acked && x >= id(sit_warn_min).state;
+            int shown = (int) x;
+            if (warn != last_warn || (warn && shown != last_shown)) {
+              last_warn = warn;
+              last_shown = shown;
+              id(rlcd).update();
+            }
+    lambda: |-
+      auto t = id(rtc_time).now();
+      if (!t.is_valid()) {
+        t = id(sntp_time).now();
+      }
+      if (!t.is_valid()) {
+        t = id(ha_time).now();
+      }
+      if (!id(ha_sit_active).has_state() || !id(ha_sit_active).state) {
+        return 0.0f;
+      }
+      if (!t.is_valid() || isnan(id(ha_sit_started).state)) {
+        return {};
+      }
+      float mins = (t.timestamp - id(ha_sit_started).state) / 60.0f;
+      if (mins < 0.0f) {
+        mins = 0.0f;
+      }
+      return mins;
+  - platform: homeassistant
+    id: ha_away_since
+    entity_id: input_datetime.desk_away_since
+    attribute: timestamp
+    on_value:
+      - component.update: rest_remain
+  - platform: template
+    name: Rest Remain
+    id: rest_remain
+    unit_of_measurement: s
+    accuracy_decimals: 0
+    icon: mdi:walk
+    update_interval: 5s
+    on_value:
+      then:
+        - lambda: |-
+            if (!id(desk_occupied).has_state() || !id(desk_occupied).state) {
+              id(rlcd).update();
+            }
+    lambda: |-
+      if (id(desk_occupied).has_state() && id(desk_occupied).state) {
+        return {};
+      }
+      auto t = id(rtc_time).now();
+      if (!t.is_valid()) {
+        t = id(sntp_time).now();
+      }
+      if (!t.is_valid()) {
+        t = id(ha_time).now();
+      }
+      if (!t.is_valid() || isnan(id(ha_away_since).state)) {
+        return {};
+      }
+      const float need = 120.0f;
+      float sec = need - (t.timestamp - id(ha_away_since).state);
+      if (sec < 0.0f) {
+        sec = 0.0f;
+      }
+      return sec;
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          bool host = usb_serial_jtag_is_connected();
+          bool was = id(on_mains);
+          if (host) {
+            id(seen_usb_host) = true;
+            id(on_mains) = true;
+          } else if (id(seen_usb_host)) {
+            id(on_mains) = false;
+          }
+          if (!id(usb_host).has_state() || id(usb_host).state != host) {
+            id(usb_host).publish_state(host);
+          }
+          if (!id(external_power).has_state() || id(external_power).state != id(on_mains)) {
+            id(external_power).publish_state(id(on_mains));
+          }
+          if (id(on_mains) != was) {
+            if (id(on_mains)) {
+              id(rlcd).high_power_mode();
+            } else {
+              id(rlcd).low_power_mode();
+            }
+          }
+          if (id(rest_timing) && millis() - id(rest_started_ms) >= 120000UL) {
+            id(rest_timing) = false;
+          }
+          if (id(on_mains) || id(rest_timing)) {
+            id(rlcd).update();
+          } else {
+            id(rlcd).low_power_mode();
+          }
+  - interval: 15s
+    then:
+      - if:
+          condition:
+            lambda: "return !id(on_mains) && !id(rest_timing);"
+          then:
+            - component.update: rlcd
+            - lambda: "id(rlcd).low_power_mode();"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: IP Address
+    mac_address:
+      name: MAC Address
+    ssid:
+      name: Connected SSID
+    dns_address:
+      name: DNS Address
+  - platform: homeassistant
+    id: ha_clock_in
+    entity_id: sensor.attendance_clock_in_text
+    on_value:
+      - component.update: rlcd
+  - platform: homeassistant
+    id: ha_clock_out
+    entity_id: sensor.attendance_clock_out_text
+    on_value:
+      - component.update: rlcd
+  - platform: homeassistant
+    id: wx_now
+    entity_id: weather.forecast_wo_de_jia
+    on_value:
+      - component.update: rlcd
+  - platform: homeassistant
+    id: wx_1h
+    entity_id: input_text.weather_next_hour_condition
+    on_value:
+      - component.update: rlcd
+
+# 功放 / 语音暂未接入。

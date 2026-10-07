@@ -57,7 +57,8 @@
     },
     "deepseek": {
       "orchestrator": {
-        "model": "codex/gpt-5.5",
+        "model": "codex/gpt-5.6-sol",
+        "variant": "xhigh",
         "skills": [
           "*"
         ],
@@ -67,7 +68,7 @@
         ]
       },
       "oracle": {
-        "model": "deepseek/deepseek-v4-pro",
+        "model": "codex/gpt-5.6-sol",
         "variant": "high",
         "skills": [
           "simplify"
@@ -75,7 +76,7 @@
         "mcps": []
       },
       "fixer": {
-        "model": "deepseek/deepseek-v4-flash",
+        "model": "deepseek/deepseek-v4-pro",
         "skills": [],
         "mcps": []
       },
@@ -94,7 +95,7 @@
         ]
       },
       "designer": {
-        "model": "deepseek/deepseek-v4-pro",
+        "model": "codex/gpt-5.6-sol",
         "variant": "medium",
         "skills": [
           "agent-browser"

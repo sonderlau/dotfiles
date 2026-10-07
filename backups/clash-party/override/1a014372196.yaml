@@ -1,0 +1,136 @@
+ipv6: false
++rules:
+- DOMAIN,captive.apple.com,DIRECT
+- DOMAIN,firefox-portal-detection.com,DIRECT
+- DOMAIN,detectportal.firefox.com,DIRECT
+- PROCESS-NAME,aTrust,DIRECT
+- PROCESS-NAME,aTrustAgent,DIRECT
+- PROCESS-NAME,aTrustXtunnel,DIRECT
+- DOMAIN-SUFFIX,hziee.edu.cn,DIRECT
+- DOMAIN-SUFFIX,nju.edu.cn,DIRECT
+- IP-CIDR,202.119.32.0/19,DIRECT,no-resolve
+- IP-CIDR,210.28.0.0/16,DIRECT,no-resolve
+- IP-CIDR,219.219.0.0/16,DIRECT,no-resolve
+- IP-CIDR,114.212.0.0/16,DIRECT,no-resolve
+- IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+- DOMAIN-SUFFIX,x.ai,PROXY
+- DOMAIN-SUFFIX,edu.cn,DIRECT
+- AND,((DOMAIN-SUFFIX,codeapi.icu),(NETWORK,udp),(DST-PORT,443)),REJECT
+- DOMAIN-SUFFIX,codeapi.icu,DIRECT
+- IP-CIDR,58.213.64.36/32,DirectNIC,no-resolve
+- RULE-SET,AiDomain,PROXY
+- RULE-SET,CiciAi,PROXY
+- RULE-SET,Developer,PROXY
+- RULE-SET,Web3,PROXY
+- DOMAIN-SUFFIX,hziee.edu.cn,DIRECT
+rules+:
+- GEOSITE,gfw,PROXY
+- GEOIP,CN,DIRECT
+- MATCH,PROXY
+tun:
+  stack: gvisor
+  auto-detect-interface: true
+  route-exclude-address+:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 2.0.0.0/24
+  - 58.213.64.36/32
+  - 202.119.32.0/19
+  - 210.28.0.0/16
+  - 219.219.0.0/16
+  - 114.212.0.0/16
+  inet4-route-exclude-address+:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 2.0.0.0/24
+  - 58.213.64.36/32
+  - 202.119.32.0/19
+  - 210.28.0.0/16
+  - 219.219.0.0/16
+  - 114.212.0.0/16
+dns:
+  fake-ip-range: 198.19.0.1/16
+  ipv6: false
+  fallback: []
+  fake-ip-filter:
+  - +.lan
+  - +.local
+  - +.nju.edu.cn
+  - time.*.com
+  - ntp.*.com
+  - +.market.xiaomi.com
+  - captive.apple.com
+  - firefox-portal-detection.com
+  - detectportal.firefox.com
+  - localhost.ptlogin2.qq.com
+  - +.ntp.org.cn
+  - '*.local'
+  - +.hziee.edu.cn
+  - +.sangfor.com
+  - +.sangfor.com.cn
+  nameserver:
+  - https://dns.alidns.com/dns-query
+  - 223.5.5.5
+  - https://doh.pub/dns-query
+  direct-nameserver:
+  - 223.5.5.5
+  - 119.29.29.29
+  direct-nameserver-follow-policy: true
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+    - 240.0.0.0/4
+    - 0.0.0.0/32
+    - 127.0.0.1/32
+    - 100.64.0.0/10
+  nameserver-policy!:
+    +.nju.edu.cn:
+    - 10.28.253.4
+    - 10.12.253.4
+    - 210.28.129.251
+    - 210.28.129.252
+    - https://dns.alidns.com/dns-query
+    +.codeapi.icu:
+    - 223.5.5.5
+    - https://dns.alidns.com/dns-query
+rule-providers:
+  AiDomain:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/szkane/ClashRuleSet/main/Clash/Ruleset/AiDomain.list
+    interval: 86400
+    path: ./ruleset/AiDomain.list
+  CiciAi:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/szkane/ClashRuleSet/main/Clash/Ruleset/CiciAi.list
+    interval: 86400
+    path: ./ruleset/CiciAi.list
+  Developer:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/szkane/ClashRuleSet/main/Clash/Ruleset/Developer.list
+    interval: 86400
+    path: ./ruleset/Developer.list
+  Web3:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/szkane/ClashRuleSet/main/Clash/Web3.list
+    interval: 86400
+    path: ./ruleset/Web3.list
+proxies+:
+- name: DirectNIC
+  type: direct
+  udp: true
+  ip-version: ipv4
++proxy-groups:
+- name: PROXY
+  type: select
+  include-all: true

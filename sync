@@ -3,129 +3,135 @@ set -eo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$REPO_DIR/dotfiles.conf"
-[ -n "${1:-}" ] && CONFIG="$1"
+auto_yes=false
+dry_run=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --yes) auto_yes=true ;;
+    --dry-run) dry_run=true ;;
+    --help) echo "Usage: ./sync [--yes] [--dry-run] [config-file]"; exit 0 ;;
+    --*) echo "Unknown option: $1" >&2; exit 1 ;;
+    *) CONFIG="$1" ;;
+  esac
+  shift
+done
 
-# --- Parse config ---
 entries=()
 current=""
 current_exc=""
-
 flush() {
-  [ -z "$current" ] && return
+  [ -z "$current" ] && return 0
   entries+=("${current}${current_exc}")
   current=""
   current_exc=""
 }
-
 while IFS= read -r line || [ -n "$line" ]; do
   stripped="${line#"${line%%[![:space:]]*}"}"
   [ -z "$stripped" ] && continue
   [[ "$stripped" == \#* ]] && continue
-
   if [[ "$line" =~ ^[[:space:]] ]]; then
+    [[ "$stripped" == \!* ]] || { echo "Invalid exclude: $line" >&2; exit 1; }
     current_exc="${current_exc}|${stripped#!}"
   else
     flush
-    current="${stripped/#\~/$HOME}"
+    current="$stripped"
   fi
 done < "$CONFIG"
 flush
 
-# --- Derive repo destination from source path ---
-dest_for() {
-  local src="$1"
-  if [[ "$src" == "$HOME/"* ]]; then
-    echo "${src#$HOME/}"
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  printf '%s' "${value%"${value##*[![:space:]]}"}"
+}
+parse_entry() {
+  local spec="${1%%|*}"
+  exc_str="${1#*|}"
+  [ "$exc_str" = "$spec" ] && exc_str=""
+  if [[ "$spec" == *' => '* ]]; then
+    path="$(trim "${spec%% => *}")"
+    dest="$(trim "${spec#* => }")"
   else
-    echo "${src#/}"
+    path="$spec"
+    dest=""
   fi
+  path="${path/#\~/$HOME}"
+  if [ -z "$dest" ]; then
+    if [[ "$path" == "$HOME/"* ]]; then dest="${path#$HOME/}"; else dest="${path#/}"; fi
+  fi
+  case "$dest" in
+    ''|/*|.|..|../*|*/../*|*/..|.git|.git/*) echo "Unsafe destination: $dest" >&2; exit 1 ;;
+  esac
 }
 
-# --- Build preview in temp dir ---
+# Exclude generated dependencies and image/design assets at every depth.
+common_excludes=(.git node_modules .DS_Store __pycache__ '*.pyc' .venv venv .esphome
+  '*.[pP][nN][gG]' '*.[jJ][pP][gG]' '*.[jJ][pP][eE][gG]' '*.[gG][iI][fF]'
+  '*.[wW][eE][bB][pP]' '*.[bB][mM][pP]' '*.[iI][cC][oO]' '*.[sS][vV][gG]'
+  '*.[tT][iI][fF]' '*.[tT][iI][fF][fF]' '*.[hH][eE][iI][cC]' '*.[aA][vV][iI][fF]'
+  '*.icns' '*.drawio')
 preview_dir=$(mktemp -d)
 trap 'rm -rf "$preview_dir"' EXIT
-
+ready=()
 for entry in "${entries[@]}"; do
-  path="${entry%%|*}"
-  exc_str="${entry#*|}"
-  [ "$exc_str" = "$path" ] && exc_str=""
-  dest="$(dest_for "$path")"
-
-  if [ ! -e "$path" ]; then
-    continue
-  fi
-
-  args=(rsync -a --delete)
-  if [ -n "$exc_str" ]; then
-    IFS='|' read -ra patterns <<< "$exc_str"
-    for p in "${patterns[@]+"${patterns[@]}"}"; do
-      [ -n "$p" ] && args+=(--exclude "$p")
-    done
-  fi
-
+  parse_entry "$entry"
+  if [ ! -e "$path" ]; then echo "  skip: $path (not found)"; continue; fi
   target="$preview_dir/$dest"
-  if [ -d "$path" ]; then
+  # Clash files enter staging only through the sanitizer.
+  if [ "$path" = "$HOME/Library/Application Support/mihomo-party" ]; then
     mkdir -p "$target"
-    args+=("$path/" "$target/")
+    python3 "$REPO_DIR/scripts/export-clash-party.py" "$target"
   else
-    mkdir -p "$(dirname "$target")"
-    args+=("$path" "$target")
+    args=(rsync -a)
+    for p in "${common_excludes[@]}"; do args+=(--exclude "$p"); done
+    if [ -n "$exc_str" ]; then
+      IFS='|' read -ra patterns <<< "$exc_str"
+      for p in "${patterns[@]}"; do [ -n "$p" ] && args+=(--exclude "$p"); done
+    fi
+    if [ -d "$path" ]; then
+      mkdir -p "$target"
+      args+=("$path/" "$target/")
+    else
+      mkdir -p "$(dirname "$target")"
+      args+=("$path" "$target")
+    fi
+    "${args[@]}"
+    if [ "$path" = "$HOME/.config/opencode" ]; then
+      python3 "$REPO_DIR/scripts/redact-json-credentials.py" "$target"
+    fi
   fi
-
-  "${args[@]}"
+  ready+=("$dest")
 done
 
-# --- Show preview ---
 echo ""
-eza --tree --icons --all --color=always --group-directories-first "$preview_dir" \
-  | sed "1s|.*|  dotfiles/|; 2,\$s/^/  /"
-echo ""
-
+if command -v eza >/dev/null 2>&1; then
+  eza --tree --icons --all --color=always --group-directories-first "$preview_dir"
+else
+  (cd "$preview_dir" && find . -type f | sort)
+fi
 file_count=$(find "$preview_dir" -type f | wc -l | tr -d ' ')
 echo "  $file_count file(s) will be synced."
-echo ""
-
-# --- Confirm ---
-printf "  Proceed? [y/N] "
-read -r answer
-if [[ ! "$answer" =~ ^[Yy]$ ]]; then
-  echo "  Aborted."
-  exit 0
+if $dry_run; then echo "  Dry run; repository unchanged."; exit 0; fi
+if ! $auto_yes; then
+  printf "  Proceed? [y/N] "
+  read -r answer
+  if [[ ! "$answer" =~ ^[Yy]$ ]]; then echo "  Aborted."; exit 0; fi
 fi
-
-# --- Sync for real ---
-echo ""
-for entry in "${entries[@]}"; do
-  path="${entry%%|*}"
-  exc_str="${entry#*|}"
-  [ "$exc_str" = "$path" ] && exc_str=""
-  dest="$(dest_for "$path")"
-
-  if [ ! -e "$path" ]; then
-    echo "  skip: $path (not found)"
-    continue
-  fi
-
-  args=(rsync -a --delete)
-  if [ -n "$exc_str" ]; then
-    IFS='|' read -ra patterns <<< "$exc_str"
-    for p in "${patterns[@]+"${patterns[@]}"}"; do
-      [ -n "$p" ] && args+=(--exclude "$p")
-    done
-  fi
-
+for dest in "${ready[@]}"; do
   target="$REPO_DIR/$dest"
-  if [ -d "$path" ]; then
+  # Reject symlinks in destination ancestors, which could redirect a backup outside the repo.
+  ancestor="$target"
+  while [ "$ancestor" != "$REPO_DIR" ]; do
+    [ ! -L "$ancestor" ] || { echo "Symlink destination: $ancestor" >&2; exit 1; }
+    ancestor="$(dirname "$ancestor")"
+  done
+  if [ -d "$preview_dir/$dest" ]; then
     mkdir -p "$target"
-    args+=("$path/" "$target/")
+    rsync -a --delete "$preview_dir/$dest/" "$target/"
   else
     mkdir -p "$(dirname "$target")"
-    args+=("$path" "$target")
+    rsync -a "$preview_dir/$dest" "$target"
   fi
-
-  "${args[@]}"
-  echo "  ok: $path"
+  echo "  ok: $dest"
 done
-
-echo ""
 echo "  Done."

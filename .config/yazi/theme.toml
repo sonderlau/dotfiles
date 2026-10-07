@@ -21,6 +21,7 @@ border_style  = { fg = "gray" }
 syntect_theme = ""
 
 [status]
-mode_normal = { bg = "blue", bold = true }
-mode_select = { bg = "red", bold = true }
-mode_unset  = { bg = "yellow", bold = true }
+# Keep mode labels readable against Ghostty's bright ANSI palette.
+mode_normal = { fg = "black", bg = "blue", bold = true }
+mode_select = { fg = "black", bg = "red", bold = true }
+mode_unset  = { fg = "black", bg = "yellow", bold = true }

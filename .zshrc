@@ -4,6 +4,7 @@ export ZSH_WAKATIME_PROJECT_DETECTION=true
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
+ZSH_DISABLE_COMPFIX=true
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -81,8 +82,6 @@ zstyle ':omz:update' mode disabled  # disable automatic updates
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(git
   python
-  pyenv
-  zsh-kitty
   uv
   tt
   brew
@@ -118,7 +117,7 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
@@ -138,14 +137,14 @@ export PATH="$HOME/.cargo/bin:$PATH"
 [ ! -f "$HOME/.x-cmd.root/X" ] || . "$HOME/.x-cmd.root/X" # boot up x-cmd.
 
 alias proxy="
-    export http_proxy=socks5://127.0.0.1:7890;
-    export https_proxy=socks5://127.0.0.1:7890;
-    export all_proxy=socks5://127.0.0.1:7890;
-    export no_proxy=socks5://127.0.0.1:7890;
-    export HTTP_PROXY=socks5://127.0.0.1:7890;
-    export HTTPS_PROXY=socks5://127.0.0.1:7890;
-    export ALL_PROXY=socks5://127.0.0.1:7890;
-    export NO_PROXY=socks5://127.0.0.1:7890;"
+    export http_proxy=socks5h://127.0.0.1:7890;
+    export https_proxy=socks5h://127.0.0.1:7890;
+    export all_proxy=socks5h://127.0.0.1:7890;
+    export no_proxy=localhost,127.0.0.1,::1,.local;
+    export HTTP_PROXY=socks5h://127.0.0.1:7890;
+    export HTTPS_PROXY=socks5h://127.0.0.1:7890;
+    export ALL_PROXY=socks5h://127.0.0.1:7890;
+    export NO_PROXY=localhost,127.0.0.1,::1,.local;"
 alias unproxy="
     unset http_proxy;
     unset https_proxy;
@@ -163,17 +162,20 @@ alias finder=open .
 
 
 [ -f ~/.secrets ] && source ~/.secrets
-export PATH=$PATH:$(go env GOPATH)/bin
+export PATH=$PATH:$HOME/go/bin
 export GPG_TTY=$(tty)
 
 export HOMEBREW_NO_ENV_HINTS=1
-export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
-export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
-export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+export HOMEBREW_BOTTLE_DOMAIN="https://mirror.nju.edu.cn/homebrew-bottles"
+export HOMEBREW_API_DOMAIN="https://mirror.nju.edu.cn/homebrew-bottles/api"
+export HOMEBREW_BREW_GIT_REMOTE="https://mirror.nju.edu.cn/git/homebrew/brew.git"
+export HOMEBREW_CORE_GIT_REMOTE="https://mirror.nju.edu.cn/git/homebrew/homebrew-core.git"
 export HOMEBREW_INSTALL_FROM_API=1
 
 export XDG_CONFIG_HOME="$HOME/.config"
 
+
+export UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 
 eval "$(zoxide init zsh)"
 
@@ -198,6 +200,11 @@ alias claude-mem='bun "/Users/sonderlau/.claude/plugins/marketplaces/thedotmack/
 
 alias oc='opencode'
 alias occ='opencode -c'
+
+# Claude
+alias cc='claude --dangerously-skip-permissions'
+alias ccr='claude --dangerously-skip-permissions --resume'
+
 
 # ==========================================
 # uv 智能环境调度 (支持全局 base 兜底与子目录继承)
@@ -231,3 +238,74 @@ _auto_activate_venv() {
 
 add-zsh-hook chpwd _auto_activate_venv
 _auto_activate_venv
+
+# ──────────────── tmux integration ────────────────
+# 工作流和命名规则继承自之前的 zellij 时期。
+# zd/za/zk 命令保留，底层切换到 tmux。
+
+# 前缀匹配解析器：根据前缀找唯一 session
+# 0 匹配 → echo 空 + 返回 1
+# 1 匹配 → echo 该名字 + 返回 0
+# 多匹配 → 列到 stderr + 返回 2
+__tmux_resolve() {
+    local prefix="$1"
+    local raw
+    raw=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep "^$prefix")
+    if [[ -z "$raw" ]]; then
+        print -u2 "no session matches '$prefix'"
+        return 1
+    fi
+    local matches
+    matches=("${(@f)raw}")
+    case ${#matches[@]} in
+        1) print -- "$matches[1]"; return 0 ;;
+        *) print -u2 "ambiguous '$prefix' matches:"
+           printf '  %s\n' "${matches[@]}" >&2
+           return 2 ;;
+    esac
+}
+
+# zd: 进入项目 session（命名规则：<父目录>-<当前目录>）
+# - 不带参 → 用当前目录命名规则 attach（不存在则创建）
+# - 带参   → 前缀匹配现有 session
+unalias zd za zk 2>/dev/null
+zd() {
+    local name
+    if [[ -n "$1" ]]; then
+        name=$(__tmux_resolve "$1") || return $?
+        tmux attach-session -t "$name"
+    else
+        name="$(basename "$(dirname "$PWD")")-$(basename "$PWD")"
+        # tmux 的 session 名不能含 . 等特殊字符，替换为 -
+        name="${name//./-}"
+        tmux new-session -A -s "$name" -c "$PWD"
+    fi
+}
+
+# za: attach 到任意现有 session（前缀匹配）
+za() {
+    [[ -z "$1" ]] && { print -u2 "usage: za <prefix>"; return 1; }
+    local name
+    name=$(__tmux_resolve "$1") || return $?
+    tmux attach-session -t "$name"
+}
+
+# zk: kill session（前缀匹配）
+zk() {
+    [[ -z "$1" ]] && { print -u2 "usage: zk <prefix>"; return 1; }
+    local name
+    name=$(__tmux_resolve "$1") || return $?
+    tmux kill-session -t "$name"
+}
+
+alias zl='tmux list-sessions'
+
+# >>> oh-my-opencode-slim background subagents >>>
+export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
+# <<< oh-my-opencode-slim background subagents <<<
+#
+#
+#
+njulogin() {
+    curl -d '{"username":"602023280010","password":"Ylmdlm@720","domain":"default"}' https://p.nju.edu.cn/api/portal/v1/login
+}

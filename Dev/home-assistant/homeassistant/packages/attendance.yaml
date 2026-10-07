@@ -1,0 +1,678 @@
+# 打卡：拷到 HA 的 config/packages/attendance.yaml
+# configuration.yaml 需要:
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# 首次还要在 HA UI 里添加 Local Calendar，名称 Work，实体应为 calendar.work
+
+input_datetime:
+  attendance_clock_in:
+    name: Clock In
+    has_date: true
+    has_time: true
+  attendance_clock_out:
+    name: Clock Out
+    has_date: true
+    has_time: true
+  desk_sit_started:
+    name: Desk Sit Started
+    has_date: true
+    has_time: true
+    icon: mdi:seat-outline
+  desk_away_since:
+    name: Desk Away Since
+    has_date: true
+    has_time: true
+    icon: mdi:walk
+
+input_boolean:
+  attendance_in_set:
+    name: Clocked In Today
+    icon: mdi:login
+  attendance_out_set:
+    name: Clocked Out Today
+    icon: mdi:logout
+  desk_sit_active:
+    name: Desk Sit Active
+    icon: mdi:seat-outline
+  desk_sit_lamp_cue:
+    name: Desk Sit Lamp Cue
+    icon: mdi:lamp
+  desk_sit_warn_acked:
+    name: Desk Sit Warn Acked
+    icon: mdi:bell-off
+  desk_rest_ready:
+    name: Desk Rest Ready
+    icon: mdi:check
+
+input_number:
+  desk_lamp_saved_brightness:
+    name: Desk Lamp Saved Brightness
+    min: 1
+    max: 255
+    step: 1
+    mode: box
+    initial: 255
+  desk_lamp_saved_kelvin:
+    name: Desk Lamp Saved Kelvin
+    min: 2700
+    max: 6500
+    step: 50
+    unit_of_measurement: K
+    mode: box
+    initial: 4000
+
+# 在 HA → 开发者工具 → 状态 里搜实体 ID，填到这两个文本框
+# 电子蚊香：switch.xxx 或 light.xxx
+# 屏幕挂灯占用：优先 binary_sensor（人体），没有就填 light.xxx（灯亮≈坐下）
+# name 是界面显示名，真正生效的是 initial / 助手当前值（实体 ID 字符串）
+# 蚊香必须是 switch.* 或 light.*，不能是 sensor.*replace_fluid（那是耗材余量）
+input_text:
+  mosquito_entity:
+    name: Mosquito entity ID
+    initial: "switch.cokit_cn_2194902183_coq5s_on_p_2_1"
+    icon: mdi:bug
+  desk_presence_entity:
+    name: Desk presence entity ID
+    initial: "binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8"
+    icon: mdi:desk-lamp
+
+template:
+  - binary_sensor:
+      - name: Desk Occupied
+        unique_id: desk_occupied
+        device_class: occupancy
+        icon: mdi:chair-rolling
+        state: >
+          {% set e = states('input_text.desk_presence_entity') | trim %}
+          {% set occ = 'binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8' %}
+          {% set lamp = 'light.yeelink_cn_2177038445_lamp42_s_2_light' %}
+          {% set src_on = e and states(e) not in ['unknown', 'unavailable', ''] and is_state(e, 'on') %}
+          {{ src_on or is_state(occ, 'on') or is_state(lamp, 'on') }}
+  - sensor:
+      - name: Attendance Clock In Text
+        unique_id: attendance_clock_in_text
+        icon: mdi:login
+        state: >
+          {% if is_state('input_boolean.attendance_in_set', 'on') %}
+            {{ states('input_datetime.attendance_clock_in')[11:16] }}
+          {% else %}
+            --:--
+          {% endif %}
+      - name: Attendance Clock Out Text
+        unique_id: attendance_clock_out_text
+        icon: mdi:logout
+        state: >
+          {% if is_state('input_boolean.attendance_out_set', 'on') %}
+            {{ states('input_datetime.attendance_clock_out')[11:16] }}
+          {% else %}
+            --:--
+          {% endif %}
+      - name: Attendance Status
+        unique_id: attendance_status
+        icon: mdi:briefcase-clock
+        state: >
+          {% if is_state('input_boolean.attendance_out_set', 'on') %}
+            out
+          {% elif is_state('input_boolean.attendance_in_set', 'on') %}
+            in
+          {% else %}
+            none
+          {% endif %}
+      - name: Attendance Config Status
+        unique_id: attendance_config_status
+        icon: mdi:check-network
+        state: >
+          {% set m = states('input_text.mosquito_entity') | trim %}
+          {% set d = states('input_text.desk_presence_entity') | trim %}
+          {% set m_dom = m.split('.')[0] if '.' in m else '' %}
+          {% set m_ok = m_dom in ['switch', 'light', 'fan', 'input_boolean']
+             and states(m) not in ['unknown', 'unavailable', ''] %}
+          {% set d_ok = d and states(d) not in ['unknown', 'unavailable', ''] %}
+          mosquito={{ 'ok' if m_ok else 'bad' }} desk={{ 'ok' if d_ok else 'bad' }}
+  - trigger:
+      - trigger: time_pattern
+        seconds: "/30"
+      - trigger: state
+        entity_id:
+          - input_boolean.desk_sit_active
+          - input_datetime.desk_sit_started
+          - binary_sensor.desk_occupied
+    sensor:
+      - name: Desk Sit Minutes
+        unique_id: desk_sit_minutes
+        unit_of_measurement: min
+        icon: mdi:seat-outline
+        state: >
+          {% if is_state('input_boolean.desk_sit_active', 'on') %}
+            {% set started = state_attr('input_datetime.desk_sit_started', 'timestamp') | float(0) %}
+            {{ [((now().timestamp() - started) / 60) | int, 0] | max }}
+          {% else %}
+            0
+          {% endif %}
+
+automation:
+  - id: attendance_clock_in
+    alias: Attendance clock in
+    mode: single
+    trigger:
+      - trigger: event
+        event_type: esphome.attendance_clock_in
+    condition:
+      # 未上班，或上一班已经打过下班（跨午夜后同一天再来）
+      - condition: template
+        value_template: >
+          {{ is_state('input_boolean.attendance_out_set', 'on')
+             or not is_state('input_boolean.attendance_in_set', 'on') }}
+    action:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.attendance_clock_in
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.attendance_in_set
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.attendance_out_set
+            - input_boolean.desk_rest_ready
+            - input_boolean.desk_sit_active
+            - input_boolean.desk_sit_lamp_cue
+            - input_boolean.desk_sit_warn_acked
+      - if:
+          - condition: template
+            value_template: >
+              {% set d = now().month * 100 + now().day %}
+              {% set e = states('input_text.mosquito_entity') | trim %}
+              {{ d >= 415 and d <= 1115
+                 and e.split('.')[0] in ['switch', 'light', 'fan', 'input_boolean']
+                 and states(e) not in ['unknown', 'unavailable', 'on', ''] }}
+        then:
+          - action: homeassistant.turn_on
+            target:
+              entity_id: "{{ states('input_text.mosquito_entity') | trim }}"
+
+  - id: attendance_clock_out
+    alias: Attendance clock out
+    mode: single
+    trigger:
+      - trigger: event
+        event_type: esphome.attendance_clock_out
+    condition:
+      - condition: state
+        entity_id: input_boolean.attendance_in_set
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.attendance_out_set
+        state: "off"
+    action:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.attendance_clock_out
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.attendance_out_set
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.desk_rest_ready
+            - input_boolean.desk_sit_active
+            - input_boolean.desk_sit_lamp_cue
+            - input_boolean.desk_sit_warn_acked
+      - action: calendar.create_event
+        target:
+          entity_id: calendar.work
+        data:
+          summary: Work
+          start_date_time: "{{ states('input_datetime.attendance_clock_in') }}"
+          end_date_time: "{{ states('input_datetime.attendance_clock_out') }}"
+      - if:
+          - condition: template
+            value_template: >
+              {% set e = states('input_text.mosquito_entity') | trim %}
+              {{ e.split('.')[0] in ['switch', 'light', 'fan', 'input_boolean']
+                 and states(e) not in ['unknown', 'unavailable', 'off', ''] }}
+        then:
+          - action: homeassistant.turn_off
+            target:
+              entity_id: "{{ states('input_text.mosquito_entity') | trim }}"
+
+  # 人还在工位：跨午夜接着算，不清上班时间。
+  # 人已走、忘了下班：把班次收到日历后再清标记。
+  - id: attendance_midnight_close
+    alias: Attendance midnight close
+    mode: single
+    trigger:
+      - trigger: time
+        at: "00:00:05"
+    action:
+      - if:
+          - condition: not
+            conditions:
+              - condition: and
+                conditions:
+                  - condition: state
+                    entity_id: input_boolean.attendance_in_set
+                    state: "on"
+                  - condition: state
+                    entity_id: input_boolean.attendance_out_set
+                    state: "off"
+                  - condition: state
+                    entity_id: binary_sensor.desk_occupied
+                    state: "on"
+        then:
+          - if:
+              - condition: state
+                entity_id: input_boolean.attendance_in_set
+                state: "on"
+              - condition: state
+                entity_id: input_boolean.attendance_out_set
+                state: "off"
+            then:
+              - action: calendar.create_event
+                target:
+                  entity_id: calendar.work
+                data:
+                  summary: Work
+                  start_date_time: "{{ states('input_datetime.attendance_clock_in') }}"
+                  end_date_time: >
+                    {% set cin = states('input_datetime.attendance_clock_in') %}
+                    {% set away = states('input_datetime.desk_away_since') %}
+                    {% set yday = (now() - timedelta(seconds=6)).strftime('%Y-%m-%d') %}
+                    {% if cin[:10] < yday and away not in ['unknown', 'unavailable', ''] and away > cin %}
+                      {{ away }}
+                    {% else %}
+                      {{ yday }} 23:59:00
+                    {% endif %}
+          - action: input_boolean.turn_off
+            target:
+              entity_id:
+                - input_boolean.attendance_in_set
+                - input_boolean.attendance_out_set
+                - input_boolean.desk_rest_ready
+                - input_boolean.desk_sit_active
+                - input_boolean.desk_sit_lamp_cue
+                - input_boolean.desk_sit_warn_acked
+          - if:
+              - condition: template
+                value_template: >
+                  {% set e = states('input_text.mosquito_entity') | trim %}
+                  {{ e.split('.')[0] in ['switch', 'light', 'fan', 'input_boolean']
+                     and states(e) not in ['unknown', 'unavailable', 'off', ''] }}
+            then:
+              - action: homeassistant.turn_off
+                target:
+                  entity_id: "{{ states('input_text.mosquito_entity') | trim }}"
+
+  - id: desk_clear_on_clock_in
+    alias: Desk clear on clock in
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: input_boolean.attendance_in_set
+        to: "on"
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.attendance_out_set
+            - input_boolean.desk_rest_ready
+            - input_boolean.desk_sit_active
+            - input_boolean.desk_sit_lamp_cue
+            - input_boolean.desk_sit_warn_acked
+
+  - id: desk_clear_on_clock_out
+    alias: Desk clear on clock out
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: input_boolean.attendance_out_set
+        to: "on"
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.desk_rest_ready
+            - input_boolean.desk_sit_active
+            - input_boolean.desk_sit_lamp_cue
+            - input_boolean.desk_sit_warn_acked
+
+  - id: desk_clear_at_midnight
+    alias: Desk clear at midnight
+    mode: single
+    trigger:
+      - trigger: time
+        at: "00:00:08"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.desk_occupied
+        state: "off"
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.desk_rest_ready
+            - input_boolean.desk_sit_active
+            - input_boolean.desk_sit_lamp_cue
+            - input_boolean.desk_sit_warn_acked
+
+  - id: desk_sit_start
+    alias: Desk sit start
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        to: "on"
+      - trigger: state
+        entity_id: input_boolean.attendance_in_set
+        to: "on"
+        for:
+          seconds: 1
+      - trigger: homeassistant
+        event: start
+    condition:
+      - condition: state
+        entity_id: binary_sensor.desk_occupied
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.desk_sit_active
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.attendance_in_set
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.attendance_out_set
+        state: "off"
+    action:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.desk_sit_started
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.desk_sit_active
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.desk_rest_ready
+
+  - id: desk_away_stamp
+    alias: Desk away stamp
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        from: "on"
+        to: "off"
+    condition:
+      - condition: state
+        entity_id: input_boolean.attendance_in_set
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.attendance_out_set
+        state: "off"
+    action:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.desk_away_since
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+  - id: desk_sit_reset
+    alias: Desk sit reset
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        to: "off"
+        for:
+          minutes: 2
+    condition:
+      - condition: state
+        entity_id: input_boolean.attendance_in_set
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.attendance_out_set
+        state: "off"
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.desk_sit_active
+            - input_boolean.desk_sit_lamp_cue
+            - input_boolean.desk_sit_warn_acked
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.desk_rest_ready
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: desk_sit_warn
+
+  # 挂灯 = 人感指示：有人开、无人关（雷达无人延时最短 1 分钟，设备不接受 30 秒）
+  - id: desk_lamp_follow_occupancy
+    alias: Desk lamp follow occupancy
+    mode: restart
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        to:
+          - "on"
+          - "off"
+    condition:
+      - condition: template
+        value_template: "{{ trigger.from_state.state in ['on', 'off'] }}"
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.desk_occupied
+                state: "off"
+            sequence:
+              - if:
+                  - condition: state
+                    entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
+                    state: "on"
+                  - condition: state
+                    entity_id: input_boolean.desk_sit_lamp_cue
+                    state: "off"
+                then:
+                  - action: input_number.set_value
+                    target:
+                      entity_id: input_number.desk_lamp_saved_brightness
+                    data:
+                      value: "{{ state_attr('light.yeelink_cn_2177038445_lamp42_s_2_light', 'brightness') | int(255) }}"
+                  - action: input_number.set_value
+                    target:
+                      entity_id: input_number.desk_lamp_saved_kelvin
+                    data:
+                      value: "{{ state_attr('light.yeelink_cn_2177038445_lamp42_s_2_light', 'color_temp_kelvin') | int(4000) }}"
+              - action: light.turn_off
+                target:
+                  entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.desk_occupied
+                state: "on"
+            sequence:
+              - action: light.turn_on
+                target:
+                  entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
+                data:
+                  brightness: "{{ states('input_number.desk_lamp_saved_brightness') | int(255) }}"
+                  color_temp_kelvin: "{{ states('input_number.desk_lamp_saved_kelvin') | int(4000) }}"
+                  transition: 1
+
+  # 久坐提醒只催一次。若继续坐着（没离开），标记已确认，不再改灯、不再弹通知。
+  - id: desk_sit_warn
+    alias: Desk sit warn
+    mode: single
+    trigger:
+      - trigger: numeric_state
+        entity_id: sensor.desk_sit_minutes
+        above: 44
+    condition:
+      - condition: state
+        entity_id: input_boolean.desk_sit_active
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.desk_occupied
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.desk_sit_warn_acked
+        state: "off"
+    action:
+      - action: persistent_notification.create
+        data:
+          title: 该站起来走走
+          message: "已经坐了 {{ states('sensor.desk_sit_minutes') }} 分钟"
+          notification_id: desk_sit_warn
+      - if:
+          - condition: state
+            entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
+            state: "on"
+        then:
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.desk_lamp_saved_brightness
+            data:
+              value: "{{ state_attr('light.yeelink_cn_2177038445_lamp42_s_2_light', 'brightness') | int(255) }}"
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.desk_lamp_saved_kelvin
+            data:
+              value: "{{ state_attr('light.yeelink_cn_2177038445_lamp42_s_2_light', 'color_temp_kelvin') | int(4000) }}"
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.desk_sit_lamp_cue
+          - action: light.turn_on
+            target:
+              entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
+            data:
+              brightness_pct: 70
+              color_temp_kelvin: 3200
+              transition: 4
+          - delay:
+              seconds: 8
+          - action: light.turn_on
+            target:
+              entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
+            data:
+              brightness: "{{ states('input_number.desk_lamp_saved_brightness') | int(255) }}"
+              color_temp_kelvin: "{{ states('input_number.desk_lamp_saved_kelvin') | int(4000) }}"
+              transition: 4
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.desk_sit_lamp_cue
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.desk_sit_warn_acked
+
+  # 提醒后若仍坐着超过 2 分钟，视为这次没法休息，屏幕 UP 也收掉
+  - id: desk_sit_warn_snooze
+    alias: Desk sit warn snooze
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: input_boolean.desk_sit_warn_acked
+        to: "on"
+        for:
+          minutes: 2
+    condition:
+      - condition: state
+        entity_id: binary_sensor.desk_occupied
+        state: "on"
+    action:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: desk_sit_warn
+
+  # 下班立刻关；凌晨清打卡时也关。长期无人（约 2.5h）另见 attendance_mosquito_off_away
+  - id: attendance_mosquito_off_away
+    alias: Attendance mosquito off after long absence
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        to: "off"
+        for:
+          hours: 2
+          minutes: 30
+    action:
+      - if:
+          - condition: template
+            value_template: >
+              {% set e = states('input_text.mosquito_entity') | trim %}
+              {{ e.split('.')[0] in ['switch', 'light', 'fan', 'input_boolean']
+                 and states(e) not in ['unknown', 'unavailable', 'off', ''] }}
+        then:
+          - action: homeassistant.turn_off
+            target:
+              entity_id: "{{ states('input_text.mosquito_entity') | trim }}"
+
+  # 忘了下班但人回来了：季节内且仍在岗则重新开蚊香
+  - id: attendance_mosquito_on_return
+    alias: Attendance mosquito on return
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_boolean.attendance_in_set
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.attendance_out_set
+        state: "off"
+      - condition: template
+        value_template: >
+          {% set d = now().month * 100 + now().day %}
+          {% set e = states('input_text.mosquito_entity') | trim %}
+          {{ d >= 415 and d <= 1115
+             and e.split('.')[0] in ['switch', 'light', 'fan', 'input_boolean']
+             and states(e) not in ['unknown', 'unavailable', 'on', ''] }}
+    action:
+      - action: homeassistant.turn_on
+        target:
+          entity_id: "{{ states('input_text.mosquito_entity') | trim }}"
+
+  # 挂灯「专注模式」开机自带闪烁，入座/休息回来都会闪，不再自动打开。
+  # 45 分钟提醒改走 desk_sit_warn（亮度/色温 4 秒缓变）。
+  - id: desk_focus_start
+    alias: Desk focus start
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        from: "off"
+        to: "on"
+    condition:
+      - condition: template
+        value_template: "{{ false }}"
+    action:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.yeelink_cn_2177038445_lamp42_on_p_5_1
+
+  - id: desk_focus_stop
+    alias: Desk focus stop
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.desk_occupied
+        to: "off"
+        for:
+          minutes: 2
+      - trigger: state
+        entity_id: input_boolean.attendance_out_set
+        to: "on"
+      - trigger: time
+        at: "00:00:10"
+    action:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.yeelink_cn_2177038445_lamp42_on_p_5_1

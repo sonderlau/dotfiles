@@ -1,0 +1,85 @@
+{
+    "global": { "check_for_updates_on_startup": false },
+    "profiles": [
+        {
+            "devices": [
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "is_pointing_device": true,
+                        "product_id": 544,
+                        "vendor_id": 13364
+                    },
+                    "ignore": false
+                }
+            ],
+            "name": "Default",
+            "selected": true,
+            "simple_modifications": [
+                {
+                    "from": { "key_code": "caps_lock" },
+                    "to": [{ "key_code": "escape" }]
+                }
+            ],
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "Right Command tap toggles Squirrel and ABC immediately",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "right_command",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "conditions": [
+                                    {
+                                        "type": "input_source_if",
+                                        "input_sources": [
+                                            { "input_source_id": "im.rime.inputmethod.Squirrel.Hans" }
+                                        ]
+                                    }
+                                ],
+                                "to": [{ "key_code": "right_command", "lazy": true }],
+                                "to_if_alone": [
+                                    {
+                                        "select_input_source": {
+                                            "input_source_id": "com.apple.keylayout.ABC"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "right_command",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "conditions": [
+                                    {
+                                        "type": "input_source_unless",
+                                        "input_sources": [
+                                            { "input_source_id": "im.rime.inputmethod.Squirrel.Hans" }
+                                        ]
+                                    }
+                                ],
+                                "to": [{ "key_code": "right_command", "lazy": true }],
+                                "to_if_alone": [
+                                    {
+                                        "select_input_source": {
+                                            "input_source_id": "im.rime.inputmethod.Squirrel.Hans"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "virtual_hid_keyboard": {
+                "country_code": 0,
+                "keyboard_type_v2": "ansi"
+            }
+        }
+    ]
+}

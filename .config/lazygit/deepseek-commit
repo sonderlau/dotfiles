@@ -1,0 +1,62 @@
+#!/bin/sh
+
+set -eu
+
+: "${DEEPSEEK_API_KEY:?Set DEEPSEEK_API_KEY before using DeepSeek commit generation.}"
+
+if git diff --cached --quiet; then
+  printf '%s\n' 'No staged changes to commit.' >&2
+  exit 1
+fi
+
+system_prompt='Generate exactly three English Conventional Commit suggestions from the staged diff. Return a JSON object only, with this exact schema: {"suggestions":[{"emoji":"✨","scope":"module","subject":"imperative summary"}]}. Use one official Gitmoji Unicode emoji per suggestion. scope must be a short lowercase identifier, and subject must be an imperative, lowercase English sentence without punctuation. Do not include markdown or extra keys.'
+
+payload=$(git diff --cached --no-ext-diff | jq -Rs --arg system "$system_prompt" '
+  {
+    model: "deepseek-v4-flash",
+    messages: [
+      {role: "system", content: $system},
+      {role: "user", content: ("Staged diff:\n" + .)}
+    ],
+    response_format: {type: "json_object"},
+    thinking: {type: "disabled"},
+    max_tokens: 500
+  }
+')
+
+suggestions=''
+for attempt in 1 2; do
+  response=$(printf '%s' "$payload" | curl --fail --silent --show-error \
+    --connect-timeout 10 --max-time 30 \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+    --data-binary @- \
+    https://api.deepseek.com/chat/completions) || continue
+
+  content=$(printf '%s' "$response" | jq -er '.choices[0].message.content | select(type == "string" and length > 0)' 2>/dev/null) || continue
+  suggestions=$(printf '%s' "$content" | jq -er '
+    .suggestions as $suggestions |
+    if $suggestions | type == "array" and length == 3 and all(.[];
+      type == "object" and
+      (.emoji | type == "string" and length > 0) and
+      (.scope | type == "string" and test("^[a-z0-9._/-]+$")) and
+      (.subject | type == "string" and test("^[^\\r\\n]+$"))
+    ) then
+      $suggestions[] | "\(.emoji) (\(.scope)): \(.subject)"
+    else
+      error("expected three valid commit suggestions")
+    end
+  ' 2>/dev/null) || continue
+
+  [ -n "$suggestions" ] && break
+done
+
+if [ -z "$suggestions" ]; then
+  printf '%s\n' 'DeepSeek did not return valid commit suggestions.' >&2
+  exit 1
+fi
+
+message=$(printf '%s\n' "$suggestions" | fzf --prompt='Commit> ') || exit 0
+[ -n "$message" ] || exit 0
+
+git commit -m "$message"

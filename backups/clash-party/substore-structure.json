@@ -1,0 +1,71 @@
+{
+  "subs": [
+    {
+      "name": "subscription-1",
+      "process": [
+        {
+          "type": "Quick Setting Operator",
+          "args": {
+            "useless": "DISABLED",
+            "udp": "DEFAULT",
+            "scert": "DEFAULT",
+            "tfo": "DEFAULT",
+            "vmess aead": "DEFAULT",
+            "reuse": "DEFAULT",
+            "block-quic": "DEFAULT",
+            "ecn": "DEFAULT",
+            "ip-version": "DEFAULT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "subscription-2",
+      "process": [
+        {
+          "type": "Quick Setting Operator",
+          "args": {
+            "useless": "DISABLED",
+            "udp": "DEFAULT",
+            "scert": "DEFAULT",
+            "tfo": "DEFAULT",
+            "vmess aead": "DEFAULT",
+            "reuse": "DEFAULT",
+            "block-quic": "DEFAULT",
+            "ecn": "DEFAULT",
+            "ip-version": "DEFAULT"
+          }
+        }
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "mergeSources": "",
+      "ignoreFailedRemoteSub": false,
+      "passThroughUA": false,
+      "firstSubFlow": true,
+      "name": "collection-1",
+      "subscriptions": [
+        "subscription-1",
+        "subscription-2"
+      ],
+      "process": [
+        {
+          "type": "Quick Setting Operator",
+          "args": {
+            "useless": "DISABLED",
+            "udp": "DEFAULT",
+            "scert": "DEFAULT",
+            "tfo": "DEFAULT",
+            "vmess aead": "DEFAULT",
+            "reuse": "DEFAULT",
+            "block-quic": "DEFAULT",
+            "ecn": "DEFAULT",
+            "ip-version": "DEFAULT"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+core: mihomo
+enableSmartCore: false
+enableSmartOverride: true
+smartCoreUseLightGBM: false
+smartCoreCollectData: false
+silentStart: true
+appTheme: system
+useWindowFrame: false
+proxyInTray: true
+showCurrentProxyInTray: false
+enableTrafficLogger: true
+trayProxyGroupStyle: default
+disableTrayIconColor: false
+maxLogDays: 15
+maxLogFileSize: 30
+disableAppLog: false
+disableCoreLog: false
+proxyCols: auto
+connectionDirection: asc
+connectionOrderBy: upload
+useSubStore: true
+autoQuitWithoutCore: false
+autoQuitWithoutCoreDelay: 60
+autoQuitWithoutCoreMode: core
+proxyDisplayMode: simple
+proxyDisplayOrder: default
+autoCheckUpdate: true
+autoUpdateProfileOnStart: true
+silentUpdate: true
+autoCloseConnection: true
+subscriptionTimeout: 30000
+gistAgeEncrypt: false
+networkInfoCardOrder:
+- ip
+- topology
+- latency
+useNameserverPolicy: true
+controlDns: false
+controlSniff: true
+floatingWindowCompatMode: true
+disableHardwareAcceleration: false
+hideConnectionCardWave: false
+siderOrder:
+- sysproxy
+- tun
+- profile
+- proxy
+- rule
+- resource
+- override
+- connection
+- mihomo
+- dns
+- sniff
+- log
+- substore
+- network
+- usage
+lastSelectedSiderCard: proxy
+siderWidth: 250
+triggerMainWindowBehavior: show
+showMixedPort: 7890
+enableMixedPort: true
+showSocksPort: 7891
+enableSocksPort: true
+showHttpPort: 7892
+enableHttpPort: true
+showRedirPort: 0
+enableRedirPort: false
+showTproxyPort: 0
+enableTproxyPort: false
+testProfileOnStart: true
+coreStartupMode: post-up
+useHotReloadProfile: false
+hotReloadProfileAutoCloseConnection: false
+smartCoreStrategy: sticky-sessions
+language: zh-CN
+envType:
+- bash
+- fish
+sysProxy:
+  enable: false
+  mode: manual
+nameserverPolicy:
+  +.nju.edu.cn:
+  - 210.28.129.251
+  - 210.28.129.252
+  - 10.28.253.4
+  - 10.12.253.4
+  - https://dns.alidns.com/dns-query
+  +.codeapi.icu:
+  - 223.5.5.5
+  - https://dns.alidns.com/dns-query
+networkLatencyTargets: []

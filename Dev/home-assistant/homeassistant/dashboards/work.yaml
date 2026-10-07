@@ -1,0 +1,64 @@
+# Lovelace 不会因为文件丢进远程目录就自动出现。
+#
+# 做法 A（推荐，不用改 configuration.yaml）：
+#   HA → 设置 → 仪表盘 → 添加仪表盘 → 三点 → 编辑 → 原始配置编辑器，把本文件
+#   从 `views:` 起整段贴进去。不需要重启 compose。
+#
+# 做法 B（YAML 仪表盘）：把本文件拷到 HA 的 `/config/dashboards/work.yaml`，
+# 并在 `/config/configuration.yaml` 里加上（已有 lovelace: 就只补 dashboards）：
+#
+#   lovelace:
+#     mode: storage
+#     dashboards:
+#       work-dashboard:
+#         mode: yaml
+#         title: Work
+#         icon: mdi:briefcase-clock
+#         show_in_sidebar: true
+#         filename: dashboards/work.yaml
+#
+# 改 configuration.yaml 后要重启 HA core（`docker compose restart` 可以，
+# 不必重启 Docker 引擎）。只拷文件、不写这段，重启也不会识别。
+#
+# packages 同理，configuration.yaml 需要：
+#   homeassistant:
+#     packages: !include_dir_named packages
+
+views:
+  - title: Work
+    path: work
+    icon: mdi:briefcase-clock
+    cards:
+      - type: calendar
+        entities:
+          - calendar.work
+        initial_view: dayGridMonth
+      - type: entities
+        title: Today
+        entities:
+          - entity: sensor.attendance_status
+          - entity: sensor.attendance_clock_in_text
+          - entity: sensor.attendance_clock_out_text
+          - entity: input_boolean.attendance_in_set
+          - entity: input_boolean.attendance_out_set
+          - entity: sensor.attendance_config_status
+          - entity: input_text.mosquito_entity
+          - entity: input_text.desk_presence_entity
+          - entity: binary_sensor.desk_occupied
+          - entity: input_boolean.desk_sit_active
+          - entity: input_datetime.desk_sit_started
+          - entity: input_text.weather_next_hour_condition
+          - entity: input_number.weather_next_hour_temp
+      - type: entities
+        title: Desk
+        entities:
+          - entity: sensor.esp32_s3_rlcd_4_2_temperature
+          - entity: sensor.esp32_s3_rlcd_4_2_humidity
+          - entity: sensor.esp32_s3_rlcd_4_2_battery_level
+          - entity: sensor.esp32_s3_rlcd_4_2_sit_minutes
+          - entity: sensor.esp32_s3_rlcd_4_2_work_minutes
+          - entity: binary_sensor.esp32_s3_rlcd_4_2_desk_occupied
+          - entity: switch.cokit_cn_2194902183_coq5s_on_p_2_1
+          - entity: switch.yeelink_cn_2177038445_lamp42_on_p_5_1
+          - entity: number.yeelink_cn_2177038445_lamp42_rest_time_p_5_3
+          - entity: binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8

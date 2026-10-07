@@ -1,0 +1,153 @@
+external-controller: ''
+external-ui: ''
+external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
+ipv6: false
+mode: rule
+mixed-port: 7890
+socks-port: 7891
+port: 7892
+redir-port: 0
+tproxy-port: 0
+allow-lan: true
+unified-delay: true
+tcp-concurrent: false
+log-level: info
+find-process-mode: strict
+bind-address: '*'
+lan-allowed-ips:
+- 0.0.0.0/0
+- ::/0
+lan-disallowed-ips: []
+skip-auth-prefixes:
+- 127.0.0.1/32
+- ::1/128
+geo-auto-update: true
+geo-update-interval: 24
+lgbm-auto-update: false
+lgbm-update-interval: 72
+lgbm-url: ''
+geodata-mode: false
+geox-url:
+  geoip: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat
+  geosite: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat
+  mmdb: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb
+  asn: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb
+tun:
+  enable: true
+  stack: gvisor
+  auto-route: true
+  auto-redirect: false
+  auto-detect-interface: true
+  dns-hijack:
+  - any:53
+  route-exclude-address:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 2.0.0.0/24
+  - 58.213.64.36/32
+  - 202.119.32.0/19
+  - 210.28.0.0/16
+  - 219.219.0.0/16
+  - 114.212.0.0/16
+  mtu: 1500
+  device: utun1500
+  inet4-route-exclude-address:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 2.0.0.0/24
+  - 58.213.64.36/32
+  - 202.119.32.0/19
+  - 210.28.0.0/16
+  - 219.219.0.0/16
+  - 114.212.0.0/16
+  strict-route: false
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.19.0.1/16
+  fake-ip-filter:
+  - +.lan
+  - +.local
+  - +.nju.edu.cn
+  - time.*.com
+  - ntp.*.com
+  - +.market.xiaomi.com
+  - captive.apple.com
+  - firefox-portal-detection.com
+  - detectportal.firefox.com
+  - localhost.ptlogin2.qq.com
+  - +.ntp.org.cn
+  - '*.local'
+  - +.hziee.edu.cn
+  - +.sangfor.com
+  - +.sangfor.com.cn
+  use-hosts: false
+  use-system-hosts: true
+  respect-rules: false
+  default-nameserver:
+  - 223.5.5.5
+  - 119.29.29.29
+  nameserver:
+  - https://dns.alidns.com/dns-query
+  - 223.5.5.5
+  - https://doh.pub/dns-query
+  proxy-server-nameserver:
+  - https://dns.alidns.com/dns-query
+  - https://doh.pub/dns-query
+  direct-nameserver:
+  - 223.5.5.5
+  - 119.29.29.29
+  fallback: []
+  direct-nameserver-follow-policy: true
+  fake-ip-filter-mode: blacklist
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr: []
+    domain: []
+  nameserver-policy:
+    +.nju.edu.cn:
+    - 10.28.253.4
+    - 10.12.253.4
+    - 210.28.129.251
+    - 210.28.129.252
+    - https://dns.alidns.com/dns-query
+    +.codeapi.icu:
+    - 223.5.5.5
+    - https://dns.alidns.com/dns-query
+profile:
+  store-selected: true
+  store-fake-ip: true
+sniffer:
+  enable: true
+  parse-pure-ip: true
+  force-dns-mapping: true
+  override-destination: false
+  skip-domain:
+  - +.push.apple.com
+  - +.nju.edu.cn
+  skip-dst-address:
+  - 91.105.192.0/23
+  - 91.108.4.0/22
+  - 91.108.8.0/21
+  - 91.108.16.0/21
+  - 91.108.56.0/22
+  - 95.161.64.0/20
+  - 149.154.160.0/20
+  - 185.76.151.0/24
+  - 2001:67c:4e8::/48
+  - 2001:b28:f23c::/47
+  - 2001:b28:f23f::/48
+  - 2a0a:f280:203::/48
+  sniff:
+    HTTP:
+      ports:
+      - 80
+      - 443
+      override-destination: false
+    TLS:
+      ports:
+      - 443

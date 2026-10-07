@@ -1,0 +1,7 @@
+# Local secrets — never commit
+secrets/*.env
+esphome/secrets.yaml
+.esphome/
+
+# Flash logs, HA dumps, board docs
+tmp/

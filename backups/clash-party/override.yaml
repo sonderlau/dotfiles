@@ -1,0 +1,6 @@
+items:
+- id: 1a014372196
+  name: AI-Rule
+  type: local
+  ext: yaml
+  global: true

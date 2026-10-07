@@ -166,7 +166,7 @@ keymap = [
 	{ on = "<F1>", run = "help", desc = "Open help" },
 ]
 prepend_keymap = [
-  { on = "I", run = "plugin quicklook", desc = "QuickLook Preview", block = false }
+  { on = "I", run = "shell 'qlmanage -p \"$@\"' --orphan", desc = "Quick Look" }
 ]
 
 [tasks]
