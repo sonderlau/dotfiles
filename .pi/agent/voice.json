@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "voice": "Tingting",
+  "aliyunVoice": "longanhuan_v3.1",
+  "aliyunInstruction": "",
+  "maxChars": 500,
+  "speakQuestions": true,
+  "summarize": true,
+  "summaryThreshold": 6,
+  "summaryMaxChars": 100,
+  "summaryTimeoutMs": 15000
+}

@@ -3,7 +3,7 @@
 # -------------------------------------------------- #
 command = /opt/homebrew/bin/fish
 shell-integration = detect
-shell-integration-features = no-cursor,sudo,title,ssh-terminfo,ssh-env
+shell-integration-features = no-cursor,sudo,title,ssh-env
 
 # -------------------------------------------------- #
 # Macos
@@ -19,25 +19,30 @@ macos-secure-input-indication = true
 # -------------------------------------------------- #
 # Typography
 # -------------------------------------------------- #
-font-family = Maple Mono SC NF
-font-size = 14
+font-family = JetBrainsMono Nerd Font Mono
+font-family = LXGW Neo XiHei Plus
+# previous: font-family = PingFang SC
+font-size = 14.5
+font-thicken = true
+font-thicken-strength = 170
 font-feature = -dlig
 adjust-cell-height = 6
 
 # -------------------------------------------------- #
 # Custom
 # -------------------------------------------------- #
-theme = warm-burnout-dark
+theme = Carbonfox
+# Opaque and a step lighter than #1a1510, so the window is not pure black
+# without compositing the desktop behind it.
+# background = #2c261e
 window-width = 150
 window-height = 45
 window-padding-x = 5
 window-padding-y = 5
-background-blur-radius = 20
-background-opacity = 0.85
 mouse-hide-while-typing = true
 window-save-state = always
 window-colorspace       = display-p3
-unfocused-split-opacity = 0.8
+unfocused-split-opacity = 1
 
 # --- Performance ---
 scrollback-limit = 25000000
@@ -56,5 +61,12 @@ copy-on-select = clipboard
 confirm-close-surface = true
 
 
-# Custom Shaders
+
+# --- Input method: F19 is only the Squirrel 中/英 toggle; do not send it to terminal apps (pi shows it as a glyph) ---
+keybind = f19=ignore
+
+# --- Cursor animation + frosted glass ---
 custom-shader = ~/.config/ghostty/shaders/cursor_smear.glsl
+custom-shader-animation = true
+background-opacity = 0.85
+background-blur = 20

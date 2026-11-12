@@ -1,0 +1,62 @@
+# -------------------------------------------------- #
+# Shell
+# -------------------------------------------------- #
+command = /opt/homebrew/bin/fish
+shell-integration = detect
+shell-integration-features = no-cursor,sudo,title,ssh-terminfo,ssh-env
+
+# -------------------------------------------------- #
+# Macos
+# -------------------------------------------------- #
+macos-titlebar-style = tabs
+macos-titlebar-proxy-icon     = visible
+macos-window-buttons          = hidden
+macos-window-shadow           = true
+macos-option-as-alt           = true
+macos-auto-secure-input       = false
+macos-secure-input-indication = true
+
+# -------------------------------------------------- #
+# Typography
+# -------------------------------------------------- #
+font-family = Maple Mono SC NF
+font-size = 14
+font-feature = -dlig
+adjust-cell-height = 6
+
+# -------------------------------------------------- #
+# Custom
+# -------------------------------------------------- #
+theme = warm-burnout-dark
+# Opaque and a step lighter than #1a1510, so the window is not pure black
+# without compositing the desktop behind it.
+background = #2c261e
+window-width = 150
+window-height = 45
+window-padding-x = 5
+window-padding-y = 5
+mouse-hide-while-typing = true
+window-save-state = always
+window-colorspace       = display-p3
+unfocused-split-opacity = 1
+
+# --- Performance ---
+scrollback-limit = 25000000
+
+# -------------------------------------------------- #
+# Clipboard
+# -------------------------------------------------- #
+clipboard-read                 = allow
+clipboard-write                = allow
+clipboard-paste-protection     = true
+clipboard-trim-trailing-spaces = true
+copy-on-select = clipboard
+
+
+# --- Close behavior ---
+confirm-close-surface = true
+
+
+
+# --- Input method: F19 is only the Squirrel 中/英 toggle; do not send it to terminal apps (pi shows it as a glyph) ---
+keybind = f19=ignore

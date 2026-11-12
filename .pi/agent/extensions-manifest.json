@@ -1,0 +1,88 @@
+{
+  "local": [
+    {
+      "name": "effort.ts",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/effort.ts"
+    },
+    {
+      "name": "ghostty-status",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/ghostty-status"
+    },
+    {
+      "name": "image-gen.ts",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/image-gen.ts"
+    },
+    {
+      "name": "pi-safety-guards",
+      "kind": "dir"
+    },
+    {
+      "name": "plan-mode",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/plan-mode"
+    },
+    {
+      "name": "simple-task",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/simple-task"
+    },
+    {
+      "name": "transcript-viz",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/transcript-viz"
+    },
+    {
+      "name": "ui-polish",
+      "kind": "symlink",
+      "target": "/Users/sonderlau/Dev/pi-agent/ui-polish"
+    }
+  ],
+  "packages": [
+    {
+      "source": "npm:pi-zentui",
+      "version": "0.34.0"
+    },
+    {
+      "source": "npm:@bachi/pi-coder",
+      "version": "2.5.6"
+    },
+    {
+      "source": "npm:pi-safety-guards",
+      "version": "1.0.2"
+    },
+    {
+      "source": "npm:@narumitw/pi-worktree",
+      "version": "0.51.10"
+    },
+    {
+      "source": "https://github.com/ayghri/i-have-adhd"
+    },
+    {
+      "source": "npm:@dietrichgebert/ponytail",
+      "version": "5.3.3"
+    },
+    {
+      "source": "npm:pi-background-tasks",
+      "version": "2.6.10"
+    },
+    {
+      "source": "npm:billion-context",
+      "version": "0.1.213"
+    },
+    {
+      "source": "npm:pi-hashline-edit-pro",
+      "version": "7.1.1"
+    },
+    {
+      "source": "npm:pi-ssh-remote",
+      "version": "0.1.16"
+    },
+    {
+      "source": "npm:@ff-labs/pi-fff",
+      "version": "0.11.0"
+    }
+  ]
+}

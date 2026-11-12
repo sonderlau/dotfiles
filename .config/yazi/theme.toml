@@ -1,27 +1,11 @@
-# A TOML linter such as https://taplo.tamasfe.dev/ can use this schema to validate your config.
-# If you encounter any issues, please make an issue at https://github.com/yazi-rs/schemas.
 # "$schema" = "https://yazi-rs.github.io/schemas/theme.json"
 
-# vim:fileencoding=utf-8:foldmethod=marker
-
 [flavor]
-use = ""
+# Ghostty can report a light color-scheme (macOS appearance) even when the
+# theme background is dark. Yazi then skips `dark` and the flavor never loads.
+dark = "ayu-dark-solid"
+light = "ayu-dark-solid"
 
-
-[mgr]
-
-# Tab
-tab_width = 12
-
-# Border
-border_symbol = " "
-border_style  = { fg = "gray" }
-
-# Highlighting
-syntect_theme = ""
-
-[status]
-# Keep mode labels readable against Ghostty's bright ANSI palette.
-mode_normal = { fg = "black", bg = "blue", bold = true }
-mode_select = { fg = "black", bg = "red", bold = true }
-mode_unset  = { fg = "black", bg = "yellow", bold = true }
+[which]
+# Use an ASCII separator so the key hints render with any terminal font.
+separator = " > "

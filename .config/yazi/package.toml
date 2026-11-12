@@ -13,5 +13,12 @@ use = "Lil-Dank/lazygit"
 rev = "8c4086c"
 hash = "85316b5e9abeae2531d3e5d02a094381"
 
-[flavor]
-deps = []
+[[flavor.deps]]
+use = "yazi-rs/flavors:catppuccin-mocha"
+rev = "1183892"
+hash = "ce320f877fe709b189433941aba747c4"
+
+[[flavor.deps]]
+use = "kmlupreti/ayu-dark"
+rev = "7217c4c"
+hash = "cb79f39e6d0276c90c53ecc18b58953c"

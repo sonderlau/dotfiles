@@ -1,0 +1,78 @@
+{
+  "lastChangelogVersion": "1.5.2",
+  "theme": "pi-coder-nightfox",
+  "doubleEscapeAction": "none",
+  "extensions": [
+    "-builtin:codemode",
+    "-builtin:tool-search"
+  ],
+  "defaultTools": [
+    "+codemode"
+  ],
+  "defaultProvider": "xai",
+  "defaultModel": "grok-4.7",
+  "compaction": {
+    "enabled": true,
+    "modelOverrides": {
+      "deepseek/deepseek-flash": {
+        "reserveTokens": 400000,
+        "keepRecentTokens": 20000
+      },
+      "jiji/gpt-6.1-sol": {
+        "reserveTokens": 300000
+      },
+      "codeapi/gpt-6.1-sol": {
+        "reserveTokens": 300000
+      },
+      "topgo/grok-4.7": {
+        "reserveTokens": 300000
+      },
+      "codeapi/grok-4.7": {
+        "reserveTokens": 300000
+      },
+      "xai/grok-4.7": {
+        "reserveTokens": 300000
+      }
+    }
+  },
+  "packages": [
+    "npm:pi-zentui",
+    {
+      "source": "npm:@bachi/pi-coder",
+      "extensions": [
+        "!extensions/mcp/**",
+        "!extensions/plan-mode/**",
+        "!extensions/prompt-editor.ts",
+        "!extensions/prompt-editor/**",
+        "!extensions/statusline/**",
+        "!extensions/cwd-statusline.ts",
+        "!extensions/user-message-bar/**",
+        "!extensions/working-indicator/**",
+        "!extensions/below-editor-after-statusline.ts",
+        "!extensions/read-path-collapse.ts",
+        "!extensions/explored-group/**",
+        "!extensions/simple-task/**"
+      ]
+    },
+    "npm:pi-safety-guards",
+    "npm:@narumitw/pi-worktree",
+    "https://github.com/ayghri/i-have-adhd",
+    "npm:@dietrichgebert/ponytail",
+    "npm:pi-background-tasks",
+    "npm:billion-context",
+    "npm:pi-hashline-edit-pro",
+    {
+      "source": "npm:pi-ssh-remote",
+      "extensions": [
+        "-./index.ts"
+      ]
+    },
+    "npm:@ff-labs/pi-fff"
+  ],
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:@bachi/pi-coder\",\"scope\":\"user\"}": "2.5.6",
+    "{\"source\":\"npm:@narumitw/pi-worktree\",\"scope\":\"user\"}": "0.51.10",
+    "{\"source\":\"npm:pi-ssh-remote\",\"scope\":\"user\"}": "0.1.15",
+    "{\"source\":\"npm:@bachi/pi-coder\",\"scope\":\"project\"}": "2.5.6"
+  }
+}

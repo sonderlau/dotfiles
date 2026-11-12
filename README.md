@@ -39,7 +39,9 @@ add an application data directory wholesale if it contains credentials.
 
 | Source | Repository copy |
 | --- | --- |
-| Local pi Ghostty status plugin | `.pi/agent/extensions/ghostty-status/` |
+| Fish shell config | `.config/fish/` |
+| Pi agent settings and extension manifest | `.pi/agent/` |
+| Squirrel user config | `Library/Rime/` |
 | Modified pi-coder plan mode | `backups/pi-coder/extensions/plan-mode/` |
 | Shared plan mode sandbox state | `backups/pi-coder/extensions/bash-command-collapse/sandbox-mode.ts` |
 | Modified pi question editor | `backups/pi-coder/extensions/ask-user-question/` |
@@ -49,41 +51,49 @@ add an application data directory wholesale if it contains credentials.
 | Home Assistant / ESPHome source | `Dev/home-assistant/` |
 
 Home Assistant keeps firmware configuration, HA packages, and dashboards.
-`docs/` designs, images, `tmp/`, `.esphome/`, local secret directories,
+`docs/` designs, images, `tmp/`, `.pi/`, `.esphome/`, local secret directories,
 `secrets.yaml`, environment files, and databases are excluded.
-Pi credentials, models, session histories and the entire npm installation are
-outside the backup list. OpenCode `.bak` files are excluded. Literal API keys and
-other credential fields in its staged JSON are replaced with `REDACTED` by
-`scripts/redact-json-credentials.py`; environment references remain intact.
-Live OpenCode files are unchanged. Restore the credentials locally or use an
-environment reference before using the restored configuration.
+Fish excludes `secrets.fish`, generated completions, and backup/lock files.
+Recreate `conf.d/secrets.fish` locally after restore.
+Pi backup is settings, keybindings, voice, zentui, trust, the sandbox allowlist,
+theme JSON, `extensions/pi-safety-guards/config.json`, and
+`extensions-manifest.json` (local names, symlink targets, package versions).
+Extension source, `auth.json`, model stores, secrets, and sessions are not copied.
+`ghostty-status` is maintained in another repository; only its symlink target is recorded.
+Squirrel backup is the user files listed in `dotfiles.conf`. `build/`, backups,
+user databases, `installation.yaml`, and the rime-ice corpus are not synced.
 
 ## Clash Party export
 
 `scripts/export-clash-party.py` handles `~/Library/Application Support/mihomo-party`.
 It exports software/UI settings, reviewed core settings (ports, DNS, TUN, sniffer),
-YAML overrides, and a separate `substore-structure.json` with anonymous subscription
+YAML overrides, hash-pinned JS overrides, and a separate `substore-structure.json` with anonymous subscription
 names, ordered collection membership, and allowed Quick Setting Operator values.
 The structure file is a reference for rebuilding aggregation, not a replacement
 for the original Sub-Store database.
 
-Raw `profile.yaml`, downloaded profiles, subscription URLs, node credentials,
-gist keys, Sub-Store tokens/scripts/caches/archives, traffic databases, browser
+Raw `profile.yaml`, `simple-config.yaml`, downloaded profiles, subscription URLs, node credentials,
+gist keys, hosts, Sub-Store tokens/scripts/caches/archives, traffic databases, browser
 storage and logs are excluded. Only reviewed public rule/update resources and
-ordinary public DNS endpoints are allowed as URLs. Unknown configuration fields
-and Sub-Store processors are omitted; custom script overrides are omitted.
+ordinary public DNS endpoints are allowed as URLs, including the Microsoft ruleset
+prefix and the `generate_204` health-check URL used by the current proxy groups.
+Unknown configuration fields and Sub-Store processors are omitted. An unreviewed
+JS override aborts the export instead of being copied. New non-secret app switches
+in the allowlist are kept; `customTrayIcons` keeps only `data:image/` values.
 Subscriptions and credentials must be added locally after restoring.
 
-The two campus-network helper scripts are copied only while their SHA-256 matches
-the reviewed versions in `REVIEWED_SCRIPTS`. If a helper changes, inspect its
-contents for credentials and update the hash before running the backup again.
+The campus-network helpers, `dns-cache-helper/dns_cache_helper.py`, and
+`party.clash.dns-cache-helper.plist` are copied only while their SHA-256 matches
+the reviewed versions. The plist is read from `~/Library/LaunchAgents` at export
+time, not from the app directory. If a helper changes, inspect it
+for credentials and update the hash before running the backup again.
 A malformed configuration or changed helper aborts the export and sync.
 The application’s original files are never rewritten.
 
 ## Restore local pi modifications
 
 The installed pi-coder package version is recorded in `backups/pi-coder/package.json`
-(currently 2.5.0). Install that package version and its dependencies first, then
+Install that recorded package version and its dependencies first, then
 copy these backed-up files into the corresponding installed package paths:
 
 ```sh
@@ -93,8 +103,6 @@ rsync -a backups/pi-coder/extensions/ask-user-question/ \
   ~/.pi/agent/npm/node_modules/@bachi/pi-coder/extensions/ask-user-question/
 cp backups/pi-coder/extensions/bash-command-collapse/sandbox-mode.ts \
   ~/.pi/agent/npm/node_modules/@bachi/pi-coder/extensions/bash-command-collapse/sandbox-mode.ts
-mkdir -p ~/.pi/agent/extensions/ghostty-status
-rsync -a .pi/agent/extensions/ghostty-status/ ~/.pi/agent/extensions/ghostty-status/
 ```
 
 Restart pi after restoring. These are source snapshots, not a standalone pi-coder

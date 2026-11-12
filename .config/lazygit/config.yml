@@ -13,6 +13,35 @@ git:
 customCommands:
   - key: "<c-g>"
     context: "files"
-    command: "$HOME/.config/lazygit/deepseek-commit"
-    description: "Generate commit message with DeepSeek"
-    output: "terminal"
+    command: >-
+      printf '%s' '{{printf "%x" .Form.Message}}' | xxd -r -p | git commit --cleanup=verbatim -F -
+    description: "DeepSeek: Conventional Commit (no emoji)"
+    prompts:
+      - type: "menuFromCommand"
+        title: "DeepSeek: choose a commit message"
+        key: "Suggestion"
+        command: >-
+          sh -c '"$HOME/.config/lazygit/deepseek-commit"'
+      - type: "input"
+        title: "Edit commit message (confirm to commit)"
+        key: "Message"
+        initialValue: "{{.Form.Suggestion}}"
+    loadingText: "Committing"
+    output: "log"
+  - key: "<c-t>"
+    context: "files"
+    command: >-
+      printf '%s' '{{printf "%x" .Form.Message}}' | xxd -r -p | git commit --cleanup=verbatim -F -
+    description: "DeepSeek: Gitmoji commit"
+    prompts:
+      - type: "menuFromCommand"
+        title: "DeepSeek: choose a Gitmoji message"
+        key: "Suggestion"
+        command: >-
+          sh -c '"$HOME/.config/lazygit/deepseek-commit" --gitmoji'
+      - type: "input"
+        title: "Edit commit message (confirm to commit)"
+        key: "Message"
+        initialValue: "{{.Form.Suggestion}}"
+    loadingText: "Committing"
+    output: "log"

@@ -1,0 +1,61 @@
+patch:
+  # Keeps plan-review browse/comment 中英文 separate. F19 still toggles the focused window.
+  engine/processors/@before 0: lua_processor@*input_route_probe
+  input_route_probe/log_path: /tmp/squirrel-context-diagnosis/live-route.log
+
+  # Keep the normal Xiaohé double-pinyin engine, but compile the internal
+  # Xiaohé shape-code lookup schema used by xhup_filter.lua.
+  schema/dependencies:
+    - melt_eng
+    - radical_pinyin
+    - xhup_lookup
+
+  # The backtick now narrows candidates with Xiaohé shape codes. The uU
+  # prefixed radical reverse lookup remains available through its translator.
+  engine/filters/@7: lua_filter@*xhup_filter
+  xhup_filter:
+    lookup_schema: xhup_lookup
+    search_key: "`"
+    search_limit: 512
+    tags: [ abc ]
+    show_other_candidates: false
+
+  # 只输出简体：复用 rime-ice 的简繁过滤器，但固定为繁转简并覆盖所有候选来源。
+  # 开关的 states 为空，因此不会出现在方案菜单；reset 和不保存状态确保始终开启。
+  switches/@2/name: simplification
+  switches/@2/reset: 1
+  switches/@2/states: []
+  traditionalize/option_name: simplification
+  traditionalize/opencc_config: t2s.json
+  traditionalize/tags: []
+  traditionalize/tips: none
+
+  # Preserve the previous short date/time triggers in the rime-ice schema.
+  date_translator/date: rq
+  date_translator/time: sj
+  date_translator/week: xq
+
+  # Keep the existing slash-prefixed symbol shortcuts alongside rime-ice's V shortcuts.
+  punctuator/symbols:
+    __include: symbols_caps_v:/symbols
+    "/fs": [½, ‰, ¼, ⅓, ⅔, ¾, ⅒]
+    "/xh": [＊, ×, ✱, ★, ☆, ✩, ✧, ❋, ❊, ❉, ❈, ❅, ✿, ✲]
+    "/dq": [🌍, 🌎, 🌏, 🌐, 🌑, 🌒, 🌓, 🌔, 🌕, 🌖, 🌗, 🌘]
+    "/sg": [🍇, 🍉, 🍌, 🍍, 🍎, 🍏, 🍑, 🍒, 🍓, 🍗, 🍦, 🎂, 🍺, 🍻]
+    "/dw": [🙈, 🐵, 🐈, 🐷, 🐨, 🐼, 🐾, 🐔, 🐬, 🐠, 🦋]
+    "/bq": [😀, 😁, 😂, 😃, 😄, 😅, 😆, 😉, 😊, 😋, 😎, 😍, 😘, 😗]
+    "/ss": [💪, 👈, 👉, 👆, 👇, ✋, 👌, 👍, 👎, ✊, 👊, 👋, 👏, 👐]
+
+  punctuator/half_shape:
+    __include: default:/punctuator/half_shape
+    "$": ["¥", "$", "€", "£", "¢", "¤"]
+    "|": ["|", "｜", "·", "・", "§", "¦", "‖", "︴"]
+    "/": ["/", "÷"]
+    "'": { pair: ["「", "」"] }
+    "[": ["【", "〔", "［"]
+    "]": ["】", "〕", "］"]
+
+  recognizer/patterns/punct: "^(V([0-9]|10|[A-Za-z]+)|/([0-9]0?|[A-Za-z]+))$"
+
+  # 输入框显示实际按键（双拼原码），不再转换成全拼。
+  translator/preedit_format: []

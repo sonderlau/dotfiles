@@ -1,0 +1,17 @@
+# Rime table
+# coding: utf-8
+#@/db_name	custom_phrase_double.txt
+#@/db_type	tabledb
+#
+# Personal shortcuts migrated from the previous Xiaohé configuration.
+# Fields are separated by tabs: text, code, optional weight.
+#
+iOS	ios
+iPhone	i
+macOS	macos
+Mac	mac
+B站	bzhan
+HarmonyOS	hm	2
+T恤	txu
+U盘	upan
+up主	upzhu

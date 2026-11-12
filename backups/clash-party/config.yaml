@@ -1,3 +1,4 @@
+modeSelected: true
 core: mihomo
 enableSmartCore: false
 enableSmartOverride: true
@@ -11,6 +12,8 @@ showCurrentProxyInTray: false
 enableTrafficLogger: true
 trayProxyGroupStyle: default
 disableTrayIconColor: false
+trayTrafficTextColor: auto
+customTrayIcon: ''
 maxLogDays: 15
 maxLogFileSize: 30
 disableAppLog: false
@@ -28,6 +31,7 @@ autoCheckUpdate: true
 autoUpdateProfileOnStart: true
 silentUpdate: true
 autoCloseConnection: true
+autoCloseConnectionOnlyGroup: false
 subscriptionTimeout: 30000
 gistAgeEncrypt: false
 networkInfoCardOrder:
@@ -35,7 +39,8 @@ networkInfoCardOrder:
 - topology
 - latency
 useNameserverPolicy: true
-controlDns: false
+controlDns: true
+disableDnsOverrideGuard: false
 controlSniff: true
 floatingWindowCompatMode: true
 disableHardwareAcceleration: false
@@ -78,17 +83,25 @@ language: zh-CN
 envType:
 - bash
 - fish
+operationMode: standard
 sysProxy:
   enable: false
   mode: manual
 nameserverPolicy:
   +.nju.edu.cn:
-  - 210.28.129.251
-  - 210.28.129.252
   - 10.28.253.4
   - 10.12.253.4
+  - 210.28.129.251
+  - 210.28.129.252
   - https://dns.alidns.com/dns-query
   +.codeapi.icu:
-  - 223.5.5.5
-  - https://dns.alidns.com/dns-query
+  - https://doh.pub/dns-query
+  +.inetsnode.de:
+  - https://doh.pub/dns-query
+  +.525536.xyz:
+  - https://doh.pub/dns-query
+  +.ctcxianyu.com:
+  - https://doh.pub/dns-query
+  geosite:gfw: []
+  rule-set:manual_proxy,AiDomain,CiciAi,Developer,Web3: []
 networkLatencyTargets: []

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>party.clash.dns-cache-helper</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/python3</string>
+		<string>/Users/sonderlau/Library/Application Support/mihomo-party/dns-cache-helper/dns_cache_helper.py</string>
+		<string>--watch</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/clash-dns-cache-helper.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/clash-dns-cache-helper.out</string>
+</dict>
+</plist>

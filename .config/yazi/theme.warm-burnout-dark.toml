@@ -1,0 +1,124 @@
+# Matches Ghostty theme warm-burnout-dark.
+# "$schema" = "https://yazi-rs.github.io/schemas/theme.json"
+
+[flavor]
+dark = ""
+light = ""
+
+[mgr]
+cwd = { fg = "#93e2c8" }
+
+find_keyword  = { fg = "#f5c56e", bold = true, underline = true }
+find_position = { fg = "#d0a1ff", bold = true }
+
+symlink_target = { fg = "#93e2c8", italic = true }
+
+marker_copied   = { fg = "#1a1510", bg = "#70bf56" }
+marker_cut      = { fg = "#1a1510", bg = "#f06b73" }
+marker_selected = { fg = "#1a1510", bg = "#fdb04c" }
+
+count_copied   = { fg = "#1a1510", bg = "#70bf56" }
+count_cut      = { fg = "#1a1510", bg = "#f06b73" }
+count_selected = { fg = "#1a1510", bg = "#fdb04c" }
+
+border_symbol = "|"
+border_style  = { fg = "#686868" }
+
+syntect_theme = ""
+
+[tabs]
+active   = { fg = "#1a1510", bg = "#fdb04c", bold = true }
+inactive = { fg = "#bfbdb6", bg = "#2a2420" }
+
+[mode]
+normal_main = { fg = "#1a1510", bg = "#4fbfff", bold = true }
+normal_alt  = { fg = "#4fbfff", bg = "#2a2420" }
+select_main = { fg = "#1a1510", bg = "#f06b73", bold = true }
+select_alt  = { fg = "#f06b73", bg = "#2a2420" }
+unset_main  = { fg = "#1a1510", bg = "#fdb04c", bold = true }
+unset_alt   = { fg = "#fdb04c", bg = "#2a2420" }
+
+[status]
+overall = { fg = "#bfbdb6", bg = "#23211b" }
+sep_left  = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+
+perm_sep   = { fg = "#686868" }
+perm_type  = { fg = "#70bf56" }
+perm_read  = { fg = "#fdb04c" }
+perm_write = { fg = "#f06b73" }
+perm_exec  = { fg = "#93e2c8" }
+
+progress_label  = { fg = "#bfbdb6", bold = true }
+progress_normal = { fg = "#70bf56", bg = "#23211b" }
+progress_error  = { fg = "#fdb04c", bg = "#f06b73" }
+
+[which]
+cols            = 1
+border          = { fg = "#686868" }
+mask            = { bg = "#1a1510" }
+cand            = { fg = "#f5c56e" }
+rest            = { fg = "#686868" }
+desc            = { fg = "#bfbdb6" }
+separator       = "  "
+separator_style = { fg = "#686868" }
+
+[confirm]
+border  = { fg = "#686868" }
+title   = { fg = "#f5c56e" }
+body    = { fg = "#bfbdb6" }
+btn_yes = { fg = "#1a1510", bg = "#70bf56" }
+btn_no  = { fg = "#bfbdb6", bg = "#2a2420" }
+
+[spot]
+border   = { fg = "#686868" }
+title    = { fg = "#f5c56e" }
+tbl_col  = { fg = "#93e2c8" }
+tbl_cell = { fg = "#bfbdb6", bg = "#2a2420" }
+
+[notify]
+title_info  = { fg = "#70bf56" }
+title_warn  = { fg = "#fdb04c" }
+title_error = { fg = "#f06b73" }
+
+[pick]
+border   = { fg = "#686868" }
+active   = { fg = "#f5c56e", bold = true }
+inactive = { fg = "#bfbdb6" }
+
+[input]
+border   = { fg = "#686868" }
+title    = { fg = "#f5c56e" }
+value    = { fg = "#bfbdb6" }
+selected = { fg = "#1a1510", bg = "#f5c56e" }
+
+[cmp]
+border   = { fg = "#686868" }
+active   = { fg = "#1a1510", bg = "#f5c56e" }
+inactive = { fg = "#bfbdb6" }
+
+[tasks]
+border  = { fg = "#686868" }
+title   = { fg = "#f5c56e" }
+hovered = { fg = "#f5c56e", bold = true }
+
+[help]
+border = { fg = "#686868" }
+chord  = { fg = "#f5c56e" }
+action = { fg = "#bfbdb6" }
+hovered = { fg = "#1a1510", bg = "#f5c56e", bold = true }
+
+[filetype]
+rules = [
+	{ mime = "**/image/*", fg = "#fdb04c" },
+	{ mime = "**/{audio,video}/*", fg = "#d0a1ff" },
+	{ mime = "**/application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,lzma,compress,archive,cpio,arj,xar,ms-cab*}", fg = "#f06b73" },
+	{ mime = "**/application/{pdf,doc,rtf}", fg = "#93e2c8" },
+	{ mime = "vfs/{absent,stale}", fg = "#686868" },
+	{ url = "*", is = "orphan", fg = "#f06b73" },
+	{ url = "*", is = "exec", fg = "#70bf56" },
+	{ url = "*", is = "dummy", fg = "#f06b73" },
+	{ url = "*/", is = "dummy", fg = "#f06b73" },
+	{ url = "*/", fg = "#fdb04c" },
+	{ url = "*", fg = "#bfbdb6" },
+]

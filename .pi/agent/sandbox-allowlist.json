@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "path": "/Users/sonderlau/.uv-base/.venv/bin",
+      "addedAt": "2026-10-07T09:28:53.007Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.uv-base/.venv/lib/python3.12/site-packages/easydict-1.13.dist-info",
+      "addedAt": "2026-10-10T04:38:03.287Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.orbstack/log",
+      "addedAt": "2026-10-13T00:24:30.398Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.pi/agent/trust.json.lock",
+      "addedAt": "2026-10-13T06:07:27.780Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.pi/agent/settings.json.lock",
+      "addedAt": "2026-10-15T07:26:13.125Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/Dev/Nib-HUB/frontend/src/state",
+      "addedAt": "2026-10-18T04:26:52.679Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.pi/agent/auth.json.lock",
+      "addedAt": "2026-10-18T05:10:34.922Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.pi/agent",
+      "addedAt": "2026-10-18T05:10:34.922Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/Dev/NiB-HUB/frontend/dist/assets",
+      "addedAt": "2026-10-19T04:25:46.204Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/Dev/NiB-HUB/frontend/dist",
+      "addedAt": "2026-10-19T05:44:02.514Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/Applications",
+      "addedAt": "2026-10-19T06:46:56.883Z",
+      "source": "confirm"
+    },
+    {
+      "path": "/Users/sonderlau/.local/bin",
+      "addedAt": "2026-11-08T05:11:13.201Z",
+      "source": "confirm"
+    }
+  ]
+}

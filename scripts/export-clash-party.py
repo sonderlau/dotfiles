@@ -21,7 +21,9 @@ smartCoreCollectData silentStart appTheme useWindowFrame proxyInTray showCurrent
  siderOrder lastSelectedSiderCard siderWidth triggerMainWindowBehavior showMixedPort
  enableMixedPort showSocksPort enableSocksPort showHttpPort enableHttpPort showRedirPort
  enableRedirPort showTproxyPort enableTproxyPort testProfileOnStart coreStartupMode
- useHotReloadProfile hotReloadProfileAutoCloseConnection smartCoreStrategy language envType""".split())
+ useHotReloadProfile hotReloadProfileAutoCloseConnection smartCoreStrategy language envType
+ autoCloseConnectionOnlyGroup customTrayIcon disableDnsOverrideGuard modeSelected
+ operationMode trayTrafficTextColor""".split())
 CORE_KEYS = set("""external-controller external-ui external-ui-url ipv6 mode mixed-port
  socks-port port redir-port tproxy-port allow-lan unified-delay tcp-concurrent log-level
  find-process-mode bind-address lan-allowed-ips lan-disallowed-ips skip-auth-prefixes
@@ -31,7 +33,7 @@ TUN_KEYS = set("""enable stack auto-route auto-redirect auto-detect-interface dn
  route-exclude-address mtu device inet4-route-exclude-address strict-route""".split())
 DNS_KEYS = set("""enable ipv6 enhanced-mode fake-ip-range fake-ip-filter use-hosts
  use-system-hosts respect-rules default-nameserver nameserver proxy-server-nameserver
- direct-nameserver fallback direct-nameserver-follow-policy fake-ip-filter-mode""".split())
+ direct-nameserver fallback direct-nameserver-follow-policy fake-ip-filter-mode listen""".split())
 SNIFFER_KEYS = set("""enable parse-pure-ip force-dns-mapping override-destination
  skip-domain skip-dst-address""".split())
 QUICK_KEYS = {"useless", "udp", "scert", "tfo", "vmess aead", "reuse", "block-quic", "ecn", "ip-version"}
@@ -41,6 +43,8 @@ PUBLIC_PREFIXES = (
     "https://github.com/MetaCubeX/meta-rules-dat/",
     "https://github.com/Zephyruso/zashboard/",
     "https://raw.githubusercontent.com/szkane/ClashRuleSet/",
+    "https://raw.githubusercontent.com/appshubcc/bett-rules/",
+    "https://www.gstatic.com/generate_204",
 )
 DROP = object()
 
@@ -110,6 +114,16 @@ def dns(data):
 
 def application(data):
     result = project(data, APP_KEYS)
+    icons = data.get("customTrayIcons")
+    if isinstance(icons, dict):
+        kept = {}
+        for key, value in icons.items():
+            if isinstance(value, str) and value.startswith("data:image/"):
+                safe = clean(value)
+                if safe is not DROP:
+                    kept[key] = safe
+        if kept:
+            result["customTrayIcons"] = kept
     if "sysProxy" in data:
         result["sysProxy"] = project(data["sysProxy"], {"enable", "mode"})
     if "nameserverPolicy" in data:
@@ -156,7 +170,7 @@ def override(data):
     for key in ("proxy-groups", "+proxy-groups", "proxy-groups+"):
         if key in data:
             result[key] = [project(x, {"name", "type", "include-all", "include-all-proxies", "include-all-providers",
-                                       "filter", "exclude-filter", "proxies", "interval", "lazy", "tolerance"})
+                                       "filter", "exclude-filter", "proxies", "url", "expected-status", "interval", "lazy", "tolerance"})
                            for x in data[key]]
     return result
 
@@ -190,7 +204,7 @@ def substore(data):
     return result
 
 
-def export(source, output):
+def export(source, output, extras=()):
     def load(name):
         return yaml.safe_load((source / name).read_text()) or {}
 
@@ -205,17 +219,30 @@ def export(source, output):
             save(name, transform(load(name)))
     if (source / "override.yaml").is_file():
         manifest = {"items": []}
+        reviewed_js = {
+            "stable-rate-exit": "e51a0863dd802c79a3a46c82d434041a17796f23212b3a028b83ebc1d7218743",
+        }
         for item in load("override.yaml").get("items", []):
-            # Only YAML overrides; JS can contain arbitrary embedded credentials.
-            if item.get("ext") != "yaml":
-                continue
+            ext = item.get("ext")
             ident = str(item["id"])
-            if not re.fullmatch(r"[A-Za-z0-9_-]+", ident):
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", ident) or ext not in {"yaml", "js"}:
                 raise ValueError("unsafe override id")
-            path = f"override/{ident}.yaml"
-            if (source / path).is_file():
+            rel = f"override/{ident}.{ext}"
+            src = source / rel
+            if ext == "yaml" and src.is_file():
                 manifest["items"].append(project(item, {"id", "name", "type", "ext", "global"}))
-                save(path, override(load(path)))
+                save(rel, override(load(rel)))
+            elif ext == "js":
+                expected = reviewed_js.get(ident)
+                digest = hashlib.sha256(src.read_bytes()).hexdigest() if src.is_file() else ""
+                if expected is None or digest != expected:
+                    raise ValueError("unreviewed JS override")
+                manifest["items"].append(project(item, {"id", "name", "type", "ext", "global"}))
+                dest = output / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+            else:
+                raise ValueError("unreviewed override")
         save("override.yaml", manifest)
     if (source / "substore/sub-store.json").is_file():
         result = substore(json.loads((source / "substore/sub-store.json").read_text()))
@@ -224,15 +251,27 @@ def export(source, output):
     # require review instead of silently copying potentially embedded secrets.
     for name, digest in REVIEWED_SCRIPTS.items():
         path = source / name
-        if path.is_file():
-            if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
-                raise ValueError(f"{name} changed: review it and update REVIEWED_SCRIPTS before backup")
-            shutil.copy2(path, output / name)
+        if not path.is_file():
+            continue
+        if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            raise ValueError(f"{name} changed: review it and update REVIEWED_SCRIPTS before backup")
+        dest = output / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, dest)
+    for extra in extras:
+        digest = REVIEWED_EXTRAS.get(extra.name)
+        if digest is None or hashlib.sha256(extra.read_bytes()).hexdigest() != digest:
+            raise ValueError("unreviewed extra")
+        shutil.copy2(extra, output / extra.name)
 
 
 REVIEWED_SCRIPTS = {
     "nju-captive-tun.sh": "3f5def6c75c291ce5ba208593ad30635244f53fcd54dd196f8ba87a4961e3e55",
     "nju-netmon.sh": "044c0f9b2a80acef7da8d22910d856fee3469b1472a58dc6c4c9dc18ca308200",
+    "dns-cache-helper/dns_cache_helper.py": "35a871734b438912b9cac6938e81cad9a695c6e388831f5d9a8f99b845b9966b",
+}
+REVIEWED_EXTRAS = {
+    "party.clash.dns-cache-helper.plist": "40741df6e01921418c0fc5ccaa0fa312503b1ac78b8f1cb10203587d0d5df603",
 }
 
 if __name__ == "__main__":
@@ -240,11 +279,15 @@ if __name__ == "__main__":
     parser.add_argument("output", type=Path)
     parser.add_argument("--source", type=Path, default=Path.home() / "Library/Application Support/mihomo-party")
     args = parser.parse_args()
+    extras = []
+    plist = Path.home() / "Library/LaunchAgents/party.clash.dns-cache-helper.plist"
+    if plist.is_file():
+        extras.append(plist)
     try:
-        export(args.source, args.output)
+        export(args.source, args.output, extras)
     except yaml.YAMLError:
         parser.exit(1, "Clash export failed: invalid YAML; source contents withheld.\n")
     except json.JSONDecodeError:
         parser.exit(1, "Clash export failed: invalid JSON; source contents withheld.\n")
-    except (ValueError, TypeError, KeyError, AttributeError):
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
         parser.exit(1, "Clash export failed: unsupported structure or changed helper script; review locally.\n")

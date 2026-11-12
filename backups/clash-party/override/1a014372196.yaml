@@ -1,32 +1,39 @@
 ipv6: false
-+rules:
-- DOMAIN,captive.apple.com,DIRECT
-- DOMAIN,firefox-portal-detection.com,DIRECT
-- DOMAIN,detectportal.firefox.com,DIRECT
+rules:
+- PROCESS-NAME,MSTeams,DIRECT
+- PROCESS-NAME,com.microsoft.teams2.agent,DIRECT
+- PROCESS-NAME,Microsoft Teams WebView Helper,DIRECT
 - PROCESS-NAME,aTrust,DIRECT
 - PROCESS-NAME,aTrustAgent,DIRECT
 - PROCESS-NAME,aTrustXtunnel,DIRECT
+- DOMAIN,captive.apple.com,DIRECT
+- DOMAIN,firefox-portal-detection.com,DIRECT
+- DOMAIN,detectportal.firefox.com,DIRECT
 - DOMAIN-SUFFIX,hziee.edu.cn,DIRECT
 - DOMAIN-SUFFIX,nju.edu.cn,DIRECT
+- DOMAIN-SUFFIX,edu.cn,DIRECT
+- DOMAIN-SUFFIX,usvisascheduling.com,DIRECT
 - IP-CIDR,202.119.32.0/19,DIRECT,no-resolve
 - IP-CIDR,210.28.0.0/16,DIRECT,no-resolve
 - IP-CIDR,219.219.0.0/16,DIRECT,no-resolve
 - IP-CIDR,114.212.0.0/16,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
-- DOMAIN-SUFFIX,x.ai,PROXY
-- DOMAIN-SUFFIX,edu.cn,DIRECT
 - AND,((DOMAIN-SUFFIX,codeapi.icu),(NETWORK,udp),(DST-PORT,443)),REJECT
 - DOMAIN-SUFFIX,codeapi.icu,DIRECT
 - IP-CIDR,58.213.64.36/32,DirectNIC,no-resolve
-- RULE-SET,AiDomain,PROXY
-- RULE-SET,CiciAi,PROXY
-- RULE-SET,Developer,PROXY
-- RULE-SET,Web3,PROXY
-- DOMAIN-SUFFIX,hziee.edu.cn,DIRECT
-rules+:
-- GEOSITE,gfw,PROXY
+- AND,((PROCESS-NAME,哔哩哔哩 Helper),(NETWORK,udp),(DST-PORT,3478)),REJECT
+- AND,((IP-CIDR,106.12.71.140/32,no-resolve),(NETWORK,udp),(DST-PORT,3478)),REJECT
+- AND,((IP-CIDR,106.12.251.31/32,no-resolve),(NETWORK,udp),(DST-PORT,3478)),REJECT
+- GEOSITE,gfw,倍率优先
+- RULE-SET,manual_proxy,倍率优先
+- RULE-SET,AiDomain,倍率优先
+- RULE-SET,CiciAi,倍率优先
+- RULE-SET,Developer,倍率优先
+- RULE-SET,Web3,倍率优先
+- DOMAIN-SUFFIX,x.ai,倍率优先
+- RULE-SET,microsoft_direct,DIRECT
 - GEOIP,CN,DIRECT
-- MATCH,PROXY
+- MATCH,倍率优先
 tun:
   stack: gvisor
   auto-detect-interface: true
@@ -51,8 +58,20 @@ tun:
   - 219.219.0.0/16
   - 114.212.0.0/16
 dns:
+  enable: true
+  listen: 127.0.0.1:53
+  enhanced-mode: fake-ip
+  use-hosts: false
+  use-system-hosts: true
+  respect-rules: false
+  fake-ip-filter-mode: blacklist
+  default-nameserver:
+  - 223.5.5.5
+  - 119.29.29.29
   fake-ip-range: 198.19.0.1/16
   ipv6: false
+  proxy-server-nameserver:
+  - https://doh.pub/dns-query
   fallback: []
   fake-ip-filter:
   - +.lan
@@ -70,13 +89,12 @@ dns:
   - +.hziee.edu.cn
   - +.sangfor.com
   - +.sangfor.com.cn
+  - +.cursor.sh
+  - +.cursor.sh.cdn.cloudflare.net
   nameserver:
-  - https://dns.alidns.com/dns-query
-  - 223.5.5.5
   - https://doh.pub/dns-query
   direct-nameserver:
-  - 223.5.5.5
-  - 119.29.29.29
+  - https://doh.pub/dns-query
   direct-nameserver-follow-policy: true
   fallback-filter:
     geoip: true
@@ -86,6 +104,12 @@ dns:
     - 0.0.0.0/32
     - 127.0.0.1/32
     - 100.64.0.0/10
+    domain:
+    - +.google.com
+    - +.gstatic.com
+    - +.googleapis.com
+    - +.x.ai
+    - +.grok.com
   nameserver-policy!:
     +.nju.edu.cn:
     - 10.28.253.4
@@ -94,9 +118,23 @@ dns:
     - 210.28.129.252
     - https://dns.alidns.com/dns-query
     +.codeapi.icu:
-    - 223.5.5.5
+    - https://doh.pub/dns-query
+    +.inetsnode.de:
+    - https://doh.pub/dns-query
+    +.525536.xyz: []
+    +.ctcxianyu.com: []
+    geosite:gfw: []
+    rule-set:manual_proxy,AiDomain,CiciAi,Developer,Web3: []
+    geosite:cn:
     - https://dns.alidns.com/dns-query
 rule-providers:
+  microsoft_direct:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/appshubcc/bett-rules/meta/geo/geosite/microsoft.mrs
+    interval: 86400
+    path: ./ruleset/microsoft_direct.mrs
   AiDomain:
     type: http
     behavior: classical
@@ -125,12 +163,45 @@ rule-providers:
     url: https://raw.githubusercontent.com/szkane/ClashRuleSet/main/Clash/Web3.list
     interval: 86400
     path: ./ruleset/Web3.list
+  manual_proxy:
+    type: file
+    behavior: classical
+    format: text
+    path: ./manual-proxy.list
 proxies+:
 - name: DirectNIC
   type: direct
   udp: true
   ip-version: ipv4
 +proxy-groups:
+- name: 低倍率
+  type: url-test
+  include-all: true
+  exclude-filter: (剩余流量|距离下次重置|套餐到期|DirectNIC|1\.5x|[2-9]\.\d+x|[2-9]\.\d+倍率)
+  url: https://www.gstatic.com/generate_204
+  interval: 180
+  tolerance: 80
+  lazy: false
+  expected-status: 204
+- name: 高倍率
+  type: url-test
+  include-all: true
+  filter: (1\.5x|[2-9]\.\d+x|[2-9]\.\d+倍率)
+  exclude-filter: (剩余流量|距离下次重置|套餐到期|DirectNIC)
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  tolerance: 80
+  lazy: false
+  expected-status: 204
+- name: 倍率优先
+  type: fallback
+  proxies:
+  - 低倍率
+  - 高倍率
+  url: https://www.gstatic.com/generate_204
+  interval: 60
+  lazy: false
+  expected-status: 204
 - name: PROXY
   type: select
   include-all: true

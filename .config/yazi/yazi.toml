@@ -1,0 +1,7 @@
+# "$schema" = "https://yazi-rs.github.io/schemas/yazi.json"
+# PDF stays in the preview pane (pdftoppm). Enter still opens the system app.
+
+[plugin]
+prepend_previewers = [
+	{ mime = "application/pdf", run = "pdf" },
+]

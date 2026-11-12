@@ -58,13 +58,6 @@ export function createQuestionnaireView(
 		},
 	};
 	const editor = new Editor(tui, editorTheme);
-	// 问卷整体拿着焦点，但硬件光标只能由内部 Editor 在 focused 时发 CURSOR_MARKER。
-	// 不传下去的话，TUI 不会把光标移到文字上，终端写完最后一条满宽分隔线后光标停在屏幕最右侧，
-	// 鼠须管候选框就跟到那里。
-	let focused = false;
-	function syncEditorFocus(): void {
-		editor.focused = focused && state.inputMode;
-	}
 
 	function refresh(): void {
 		cachedLines = undefined;
@@ -82,13 +75,11 @@ export function createQuestionnaireView(
 				// 重答时把上次打的字放回编辑器（切走再切回来不丢草稿）。
 				const previous = state.answers[state.currentTab];
 				editor.setText(previous?.kind === "custom" ? (previous.answer ?? "") : "");
-				syncEditorFocus();
 				refresh();
 				return;
 			}
 			case "exitInput":
 				editor.setText("");
-				syncEditorFocus();
 				refresh();
 				return;
 			case "continue":
@@ -267,13 +258,5 @@ export function createQuestionnaireView(
 			editor.invalidate();
 		},
 		handleInput,
-		get focused() {
-			return focused;
-		},
-		set focused(value: boolean) {
-			focused = value;
-			syncEditorFocus();
-			cachedLines = undefined;
-		},
 	};
 }

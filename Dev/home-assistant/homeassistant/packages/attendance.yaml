@@ -44,6 +44,10 @@ input_boolean:
   desk_rest_ready:
     name: Desk Rest Ready
     icon: mdi:check
+  # 人感掉线时保住上一次 on/off，最多两分钟。掉线不是离座，但挂灯一直不在线也不能当成还坐着。
+  desk_presence_hold:
+    name: Desk Presence Hold
+    icon: mdi:account-clock
 
 input_number:
   desk_lamp_saved_brightness:
@@ -64,7 +68,7 @@ input_number:
 
 # 在 HA → 开发者工具 → 状态 里搜实体 ID，填到这两个文本框
 # 电子蚊香：switch.xxx 或 light.xxx
-# 屏幕挂灯占用：优先 binary_sensor（人体），没有就填 light.xxx（灯亮≈坐下）
+# 屏幕挂灯占用：填人感 binary_sensor。不要用灯的开关代替人感，灯亮会把“有人”锁死。
 # name 是界面显示名，真正生效的是 initial / 助手当前值（实体 ID 字符串）
 # 蚊香必须是 switch.* 或 light.*，不能是 sensor.*replace_fluid（那是耗材余量）
 input_text:
@@ -86,9 +90,17 @@ template:
         state: >
           {% set e = states('input_text.desk_presence_entity') | trim %}
           {% set occ = 'binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8' %}
-          {% set lamp = 'light.yeelink_cn_2177038445_lamp42_s_2_light' %}
-          {% set src_on = e and states(e) not in ['unknown', 'unavailable', ''] and is_state(e, 'on') %}
-          {{ src_on or is_state(occ, 'on') or is_state(lamp, 'on') }}
+          {% set src = e if e else occ %}
+          {% if is_state(src, 'on') %}
+            true
+          {% elif is_state(src, 'off') %}
+            false
+          {% else %}
+            {# 挂灯掉线不是离座，但只保住两分钟。灯亮不计入座，否则灯关不掉、人感也清不掉。 #}
+            {% set changed = states[src].last_changed if src in states else none %}
+            {% set age = (now() - changed).total_seconds() if changed is not none else 9999 %}
+            {{ age < 120 and is_state('input_boolean.desk_presence_hold', 'on') }}
+          {% endif %}
   - sensor:
       - name: Attendance Clock In Text
         unique_id: attendance_clock_in_text
@@ -169,7 +181,14 @@ automation:
         target:
           entity_id: input_datetime.attendance_clock_in
         data:
-          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          datetime: >
+            {% set raw = trigger.event.data.punched_at | default('', true) %}
+            {% set p = raw | string %}
+            {% if p | length == 19 and p[4] == '-' and p[13] == ':' %}
+              {{ p }}
+            {% else %}
+              {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            {% endif %}
       - action: input_boolean.turn_on
         target:
           entity_id: input_boolean.attendance_in_set
@@ -212,7 +231,14 @@ automation:
         target:
           entity_id: input_datetime.attendance_clock_out
         data:
-          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          datetime: >
+            {% set raw = trigger.event.data.punched_at | default('', true) %}
+            {% set p = raw | string %}
+            {% if p | length == 19 and p[4] == '-' and p[13] == ':' %}
+              {{ p }}
+            {% else %}
+              {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            {% endif %}
       - action: input_boolean.turn_on
         target:
           entity_id: input_boolean.attendance_out_set
@@ -552,7 +578,8 @@ automation:
             target:
               entity_id: light.yeelink_cn_2177038445_lamp42_s_2_light
             data:
-              brightness_pct: 70
+              # 全亮时原来收到 70%。再低一档到 60%，仍然是缓慢变暗。
+              brightness_pct: 60
               color_temp_kelvin: 3200
               transition: 4
           - delay:
@@ -676,3 +703,38 @@ automation:
       - action: switch.turn_off
         target:
           entity_id: switch.yeelink_cn_2177038445_lamp42_on_p_5_1
+
+  # 只有人感真正报 on/off 才改保持值。unavailable 保持原样。
+  - id: desk_presence_hold_sync
+    alias: Desk presence hold
+    mode: queued
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8
+        to:
+          - "on"
+          - "off"
+      - trigger: state
+        entity_id: input_text.desk_presence_entity
+      - trigger: homeassistant
+        event: start
+    action:
+      - variables:
+          src: >
+            {% set e = states('input_text.desk_presence_entity') | trim %}
+            {{ e if e else 'binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8' }}
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ is_state(src, 'on') }}"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.desk_presence_hold
+          - conditions:
+              - condition: template
+                value_template: "{{ is_state(src, 'off') }}"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.desk_presence_hold

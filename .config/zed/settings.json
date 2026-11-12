@@ -118,8 +118,16 @@
   "lsp": {
     "tinymist": {
       "settings": {
-        "exportPdf": "onSave",
+        "exportPdf": "onType",
         "outputPath": "$root/$name",
+      },
+      "initialization_options": {
+        "preview": {
+          "background": {
+            "enabled": true,
+            "args": ["--data-plane-host=127.0.0.1:23635", "--invert-colors=never"],
+          },
+        },
       },
     },
     "pyrefly": {

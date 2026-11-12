@@ -77,10 +77,13 @@ for entry in "${entries[@]}"; do
   parse_entry "$entry"
   if [ ! -e "$path" ]; then echo "  skip: $path (not found)"; continue; fi
   target="$preview_dir/$dest"
-  # Clash files enter staging only through the sanitizer.
+  # Clash and pi agent files enter staging only through their exporters.
   if [ "$path" = "$HOME/Library/Application Support/mihomo-party" ]; then
     mkdir -p "$target"
     python3 "$REPO_DIR/scripts/export-clash-party.py" "$target"
+  elif [ "$path" = "$HOME/.pi/agent" ]; then
+    mkdir -p "$target"
+    python3 "$REPO_DIR/scripts/export-pi-agent.py" "$path" "$target"
   else
     args=(rsync -a)
     for p in "${common_excludes[@]}"; do args+=(--exclude "$p"); done
@@ -96,9 +99,6 @@ for entry in "${entries[@]}"; do
       args+=("$path" "$target")
     fi
     "${args[@]}"
-    if [ "$path" = "$HOME/.config/opencode" ]; then
-      python3 "$REPO_DIR/scripts/redact-json-credentials.py" "$target"
-    fi
   fi
   ready+=("$dest")
 done

@@ -1,0 +1,30 @@
+# Rime schema
+# encoding: utf-8
+
+# Internal lookup schema for the Xiaohé shape-code table. It is a dependency
+# of double_pinyin_flypy and is intentionally absent from the schema menu.
+schema:
+  schema_id: xhup_lookup
+  name: XHUP internal lookup
+  version: "1.0"
+
+engine:
+  processors:
+    - speller
+  segmentors:
+    - abc_segmentor
+  translators:
+    - table_translator
+  filters:
+    - uniquifier
+
+speller:
+  alphabet: abcdefghijklmnopqrstuvwxyz;
+  initials: abcdefghijklmnopqrstuvwxyz;
+
+translator:
+  dictionary: xhup
+  enable_charset_filter: false
+  enable_sentence: false
+  enable_completion: false
+  enable_user_dict: false

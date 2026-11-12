@@ -97,21 +97,37 @@ class SyncTests(unittest.TestCase):
         self.assertNotIn("DO_NOT_COPY", (target / "config.yaml").read_text())
         self.assertEqual(yaml.safe_load((target / "config.yaml").read_text())["appTheme"], "dark")
 
-    def test_opencode_redaction_does_not_change_live_config(self):
-        content = json.dumps({"provider": {"local": {"options": {"apiKey": "FIXTURE_SECRET"}},
-                                           "remote": {"options": {"apiKey": "{env:REMOTE_KEY}"}}}})
-        source = self.source(".config/opencode/opencode.json", content)
-        self.source(".config/opencode/opencode.json.bak", content)
-        self.config("~/.config/opencode\n  !*.bak\n")
+    def test_pi_exports_settings_not_extension_source(self):
+        secret = "FIXTURE_SECRET"
+        self.source(".pi/agent/settings.json", json.dumps({
+            "theme": "dark",
+            "packages": ["npm:pi-safety-guards", "https://github.com/example/ghostty-status"],
+        }))
+        self.source(".pi/agent/auth.json", secret)
+        self.source(".pi/agent/extensions/local-ext/index.ts", secret)
+        link = self.home / ".pi/agent/extensions/ghostty-status"
+        link.symlink_to("/tmp/not-copied")
+        self.source(".pi/agent/npm/node_modules/pi-safety-guards/package.json", json.dumps({"version": "1.2.3"}))
+        self.source(".pi/agent/themes/dark.json", '{"name":"dark"}')
+        self.config("~/.pi/agent\n")
         result = self.run_sync("--yes")
         self.assertEqual(result.returncode, 0, result.stderr)
-        target = self.repo / ".config/opencode/opencode.json"
-        self.assertNotIn("FIXTURE_SECRET", target.read_text())
-        self.assertIn("REDACTED", target.read_text())
-        self.assertIn("{env:REMOTE_KEY}", target.read_text())
-        self.assertEqual(source.read_text(), content)
-        self.assertFalse(target.with_suffix(".json.bak").exists())
-
+        target = self.repo / ".pi/agent"
+        self.assertFalse((target / "auth.json").exists())
+        self.assertFalse((target / "extensions/local-ext").exists())
+        self.assertFalse((target / "npm").exists())
+        manifest = json.loads((target / "extensions-manifest.json").read_text())
+        self.assertEqual(manifest["local"], [
+            {"name": "ghostty-status", "kind": "symlink", "target": "/tmp/not-copied"},
+            {"name": "local-ext", "kind": "dir"},
+        ])
+        self.assertEqual(manifest["packages"], [
+            {"source": "npm:pi-safety-guards", "version": "1.2.3"},
+            {"source": "https://github.com/example/ghostty-status"},
+        ])
+        self.assertNotIn(secret, (target / "extensions-manifest.json").read_text())
+        self.assertEqual(json.loads((target / "settings.json").read_text())["theme"], "dark")
+        self.assertEqual((target / "themes/dark.json").read_text(), '{"name":"dark"}')
     def test_parse_failure_does_not_modify_repository(self):
         app = "Library/Application Support/mihomo-party"
         self.source(app + "/config.yaml", "appTheme: [invalid\n")
@@ -160,6 +176,37 @@ class ClashTests(unittest.TestCase):
         self.assertEqual(result["collections"][0]["subscriptions"], ["subscription-2", "subscription-1"])
         self.assertEqual(result["subs"][0]["process"][0]["args"], {"udp": "DEFAULT", "useless": "DISABLED"})
         self.assertEqual(result["subs"][1]["process"], [])
+
+    def test_new_app_fields_and_probe_url(self):
+        secret = "FIXTURE_SECRET"
+        app = clash.application({
+            "autoCloseConnectionOnlyGroup": True,
+            "customTrayIcon": False,
+            "customTrayIcons": {"normal": "data:image/png;base64,abc", "note": secret},
+            "gistAgeSecretKey": secret,
+        })
+        self.assertTrue(app["autoCloseConnectionOnlyGroup"])
+        self.assertEqual(app["customTrayIcons"], {"normal": "data:image/png;base64,abc"})
+        self.assertNotIn("gistAgeSecretKey", app)
+        over = clash.override({"proxy-groups": [{
+            "name": "g", "type": "url-test",
+            "url": "https://www.gstatic.com/generate_204", "expected-status": 204,
+            "password": secret,
+        }]})
+        group = over["proxy-groups"][0]
+        self.assertEqual(group["url"], "https://www.gstatic.com/generate_204")
+        self.assertEqual(group["expected-status"], 204)
+        self.assertNotIn("password", group)
+
+    def test_unreviewed_js_override_aborts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "source"
+            (source / "override").mkdir(parents=True)
+            (source / "override.yaml").write_text(
+                "items:\n- {id: evil, ext: js, name: x, type: local}\n")
+            (source / "override/evil.js").write_text("token=FIXTURE_SECRET")
+            with self.assertRaisesRegex(ValueError, "unreviewed"):
+                clash.export(source, Path(temp) / "output")
 
     def test_scripts_require_review(self):
         with tempfile.TemporaryDirectory() as temp:

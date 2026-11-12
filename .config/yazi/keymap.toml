@@ -1,6 +1,14 @@
 # A TOML linter such as https://taplo.tamasfe.dev/ can use this schema to validate your config.
 # If you encounter any issues, please make an issue at https://github.com/yazi-rs/schemas.
 # "$schema" = "https://yazi-rs.github.io/schemas/keymap.json"
+#
+# Cheat sheet (full list: ~ or F1, then f to filter)
+#   Space / v     select files          y copy   x cut   p paste
+#   H / L         back / forward        1-9 switch tab   t new tab
+#   E             extract archive into the current directory (7zz)
+#   g a           pick an agent (pi, claude, codex, opencode, gemini)
+#   PDF           right pane is the preview; J/K change page
+#                 I = Quick Look; Enter = open in the default app (Acrobat)
 
 [mgr]
 
@@ -137,7 +145,7 @@ keymap = [
 	{ on = [ "g", "p" ],       run = "cd ~/Desktop/papers",    desc = "Go to papers" },
 	# { on = [ "g", "o" ],       run = "cd ~/Library/Mobile\\ Documents/iCloud~md~obsidian/Documents",   desc = "Goto obsidian" },
 	# { on = [ "g", "x" ],       run = "cd ~/Library/Mobile\\ Documents/iCloud~com~west2online~ClashX/Documents",   desc = "Goto clashx" },
-	# { on = [ "g", "<Space>" ], run = "cd --interactive", desc = "Jump interactively" },
+	{ on = [ "g", "<Space>" ], run = "cd --interactive", desc = "Jump interactively" },
 
 	# Tabs
 	{ on = "t", run = "tab_create --current", desc = "Create a new tab with CWD" },
@@ -162,11 +170,14 @@ keymap = [
 	{ on = "w", run = "tasks_show", desc = "Show task manager" },
 
 	# Help
-	{ on = "~",    run = "help", desc = "Open help" },
-	{ on = "<F1>", run = "help", desc = "Open help" },
+	{ on = "~",    run = "help", desc = "Key cheat sheet (f to filter)" },
+	{ on = "<F1>", run = "help", desc = "Key cheat sheet (f to filter)" },
 ]
 prepend_keymap = [
-  { on = "I", run = "shell 'qlmanage -p \"$@\"' --orphan", desc = "Quick Look" }
+  { on = "I", run = "shell 'qlmanage -p \"$@\"' --orphan", desc = "Quick Look" },
+  { on = "E", run = "shell --block 'ya pub extract --list \"$@\"'", desc = "Extract archive into the current directory" },
+
+  { on = [ "g", "a" ], run = "plugin agent", desc = "Pick an agent in the current directory" },
 ]
 
 [tasks]

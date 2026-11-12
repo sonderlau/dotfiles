@@ -10,7 +10,7 @@ redir-port: 0
 tproxy-port: 0
 allow-lan: true
 unified-delay: true
-tcp-concurrent: false
+tcp-concurrent: true
 log-level: info
 find-process-mode: strict
 bind-address: '*'
@@ -91,23 +91,28 @@ dns:
   - 223.5.5.5
   - 119.29.29.29
   nameserver:
-  - https://dns.alidns.com/dns-query
-  - 223.5.5.5
   - https://doh.pub/dns-query
   proxy-server-nameserver:
-  - https://dns.alidns.com/dns-query
   - https://doh.pub/dns-query
   direct-nameserver:
-  - 223.5.5.5
-  - 119.29.29.29
+  - https://doh.pub/dns-query
   fallback: []
   direct-nameserver-follow-policy: true
   fake-ip-filter-mode: blacklist
   fallback-filter:
     geoip: true
     geoip-code: CN
-    ipcidr: []
-    domain: []
+    ipcidr:
+    - 240.0.0.0/4
+    - 0.0.0.0/32
+    - 127.0.0.1/32
+    - 100.64.0.0/10
+    domain:
+    - +.google.com
+    - +.gstatic.com
+    - +.googleapis.com
+    - +.x.ai
+    - +.grok.com
   nameserver-policy:
     +.nju.edu.cn:
     - 10.28.253.4
@@ -116,7 +121,14 @@ dns:
     - 210.28.129.252
     - https://dns.alidns.com/dns-query
     +.codeapi.icu:
-    - 223.5.5.5
+    - https://doh.pub/dns-query
+    +.inetsnode.de:
+    - https://doh.pub/dns-query
+    +.525536.xyz: []
+    +.ctcxianyu.com: []
+    geosite:gfw: []
+    rule-set:manual_proxy,AiDomain,CiciAi,Developer,Web3: []
+    geosite:cn:
     - https://dns.alidns.com/dns-query
 profile:
   store-selected: true

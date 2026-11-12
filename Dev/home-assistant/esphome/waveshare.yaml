@@ -18,8 +18,14 @@ esphome:
   friendly_name: ${friendly_name}
   min_version: 2026.8.0
   name_add_mac_suffix: false
+  includes:
+    - attendance_queue.h
   includes_c:
     - <driver/usb_serial_jtag.h>
+  on_boot:
+    - priority: -100
+      then:
+        - script.execute: paint_rlcd
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -33,7 +39,7 @@ psram:
   speed: 80MHz
 
 external_components:
-  - source: github://kylehase/ESPHome-ST7305-RLCD
+  - source: github://kylehase/ESPHome-ST7305-RLCD@5a3e9456c94e2eb85280c24e6c2e18b1f7e03406
     components: [st7305_rlcd]
 
 logger:
@@ -46,9 +52,13 @@ logger:
     i2c.idf: INFO
 
 api:
+  id: ha_api
   encryption:
     key: !secret api_encryption_key
   reboot_timeout: 0s
+  on_client_connected:
+    - delay: 5s
+    - script.execute: flush_punches
 
 ota:
   - platform: esphome
@@ -64,7 +74,20 @@ wifi:
 captive_portal:
 
 globals:
-  - id: pending_out
+  # 离线打卡。kind：0 空，1 上班，2 下班。时间是 UTC 秒，掉电后仍在。
+  - id: punch_kind
+    type: uint8_t[4]
+    restore_value: true
+    initial_value: "std::array<uint8_t, 4>{0, 0, 0, 0}"
+  - id: punch_ts
+    type: uint32_t[4]
+    restore_value: true
+    initial_value: "std::array<uint32_t, 4>{0, 0, 0, 0}"
+  - id: flush_hold
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: flush_skip_send
     type: bool
     restore_value: false
     initial_value: "false"
@@ -77,7 +100,8 @@ globals:
     restore_value: false
     initial_value: "0"
   # 原理图没有 VBUS/STAT 接到 GPIO。充电砖不发 SOF，无法和电池区分。
-  # 没见过 USB 主机时保持外接电源（快刷）；见过主机再断开，才当作电池。
+  # 没见过 USB 主机时保持外接电源；见过主机再断开，才当作电池。
+  # 外接电源只改电池图标。屏幕保持静止刷新，避免每秒整屏重画把按键卡住。
   - id: on_mains
     type: bool
     restore_value: false
@@ -86,6 +110,11 @@ globals:
     type: bool
     restore_value: false
     initial_value: "false"
+  # 打卡键按下后先亮一下，确认这次按键被看到了。单位是秒。
+  - id: punch_ack
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
 
 web_server:
   port: 80
@@ -288,7 +317,7 @@ display:
         it.strftime(10, 16, id(font_small), COLOR_OFF, TextAlign::CENTER_LEFT,
                     "%m-%d", now);
         it.strftime(200, 16, id(font_mid), COLOR_OFF, TextAlign::CENTER,
-                    id(on_mains) ? "%H:%M:%S" : "%H:%M", now);
+                    "%H:%M", now);
       }
       it.print(312, 16, id(font_small), COLOR_OFF, TextAlign::CENTER_RIGHT,
                id(on_mains) ? "EXT" : "BAT");
@@ -315,31 +344,56 @@ display:
                   "%.0f%%", id(hum_sensor).state);
       }
 
+      AttendanceView punches = attendance_view(id(punch_kind), id(punch_ts));
+      char local_in_hhmm[6] = {};
+      char local_out_hhmm[6] = {};
+      if (punches.in_ts != 0) {
+        auto tin = ESPTime::from_epoch_local((time_t) punches.in_ts);
+        tin.strftime(local_in_hhmm, sizeof(local_in_hhmm), "%H:%M");
+      }
+      if (punches.out_ts != 0) {
+        auto tout = ESPTime::from_epoch_local((time_t) punches.out_ts);
+        tout.strftime(local_out_hhmm, sizeof(local_out_hhmm), "%H:%M");
+      }
+
       it.image(208, 44, id(ic_in));
-      if (id(ha_clock_in).has_state() && !id(ha_clock_in).state.empty()) {
+      if (id(punch_ack) > 0) {
+        it.filled_rectangle(196, 48, 8, 8);
+      }
+      if (punches.in_ts != 0) {
+        it.print(232, 54, id(font_mid), TextAlign::CENTER_LEFT, local_in_hhmm);
+      } else if (id(ha_clock_in).has_state() && !id(ha_clock_in).state.empty()) {
         it.print(232, 54, id(font_mid), TextAlign::CENTER_LEFT,
                  id(ha_clock_in).state.c_str());
       } else {
         it.print(232, 54, id(font_mid), TextAlign::CENTER_LEFT, "--:--");
       }
 
-      bool clocked_out = id(pending_out)
-                         || (id(ha_out_set).has_state() && id(ha_out_set).state);
-      bool in_set = id(ha_in_set).has_state() && id(ha_in_set).state;
-      bool clocked_in = in_set && !clocked_out;
+      bool ha_in = id(ha_in_set).has_state() && id(ha_in_set).state;
+      bool ha_out = id(ha_out_set).has_state() && id(ha_out_set).state;
+      bool lamp_down = id(lamp_presence).has_state()
+                       && (id(lamp_presence).state == "unavailable"
+                           || id(lamp_presence).state == "unknown");
+      bool clocked_out = punches.closed_out || (ha_out && !punches.open_in);
+      bool clocked_in = punches.open_in || (ha_in && !clocked_out);
       bool last_shift_closed = !isnan(id(ha_clock_out_ts).state)
                                && !isnan(id(ha_clock_in_ts).state)
                                && id(ha_clock_out_ts).state >= id(ha_clock_in_ts).state;
       bool show_home = clocked_out || (!clocked_in && last_shift_closed);
       const char *out_hhmm = nullptr;
-      if (id(ha_clock_out).has_state() && !id(ha_clock_out).state.empty()
-          && id(ha_clock_out).state != "--:--") {
+      if (punches.out_ts != 0) {
+        out_hhmm = local_out_hhmm;
+      } else if (id(ha_clock_out).has_state() && !id(ha_clock_out).state.empty()
+                 && id(ha_clock_out).state != "--:--") {
         out_hhmm = id(ha_clock_out).state.c_str();
       }
       if (show_home) {
         it.image(308, 44, id(ic_home));
         it.print(332, 54, id(font_mid), TextAlign::CENTER_LEFT,
                  out_hhmm != nullptr ? out_hhmm : "HOME");
+      } else if (lamp_down && punches.in_ts == 0) {
+        it.image(308, 44, id(ic_elapsed));
+        it.print(332, 54, id(font_mid), TextAlign::CENTER_LEFT, "--:--");
       } else {
         it.image(308, 44, id(ic_elapsed));
         if (isnan(id(work_minutes).state)) {
@@ -354,8 +408,8 @@ display:
         }
       }
 
-      // Sit band: HOME (clocked out) / AWAY (on duty, 暂离 30m+) /
-      // REST (short sit-break) / OK (rest done) / UP / sitting
+      // Sit band: HOME (clocked out) / LAMP (挂灯人感不可用) /
+      // AWAY (on duty, 暂离 30m+) / REST / OK / UP / sitting
       bool occupied = id(desk_occupied).has_state() && id(desk_occupied).state;
       bool sit_on = id(ha_sit_active).has_state() && id(ha_sit_active).state;
       bool rest_ready = id(ha_rest_ready).has_state() && id(ha_rest_ready).state;
@@ -375,7 +429,15 @@ display:
       bool warn = sit_on && occupied && !acked
                   && !isnan(id(sit_minutes).state)
                   && id(sit_minutes).state >= id(sit_warn_min).state;
-      if (show_home) {
+      if (id(punch_ack) > 0 && clocked_in && !show_home) {
+        it.filled_rectangle(0, 80, 400, 76);
+        it.image(16, 104, id(ic_ok), COLOR_OFF, COLOR_ON);
+        it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "IN");
+        if (local_in_hhmm[0] != '\0') {
+          it.print(384, 118, id(font_clock), COLOR_OFF, TextAlign::CENTER_RIGHT,
+                   local_in_hhmm);
+        }
+      } else if (show_home) {
         it.filled_rectangle(0, 80, 400, 76);
         it.image(16, 104, id(ic_home_lg), COLOR_OFF, COLOR_ON);
         it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "HOME");
@@ -383,6 +445,9 @@ display:
           it.print(384, 118, id(font_clock), COLOR_OFF, TextAlign::CENTER_RIGHT,
                    out_hhmm);
         }
+      } else if (lamp_down) {
+        it.filled_rectangle(0, 80, 400, 76);
+        it.print(200, 118, id(font_warn), COLOR_OFF, TextAlign::CENTER, "LAMP");
       } else if (away_long) {
         it.filled_rectangle(0, 80, 400, 76);
         it.image(16, 104, id(ic_out_lg), COLOR_OFF, COLOR_ON);
@@ -505,8 +570,9 @@ binary_sensor:
         input: true
         pullup: true
     on_press:
-      - component.update: rlcd
-  # 打卡键：当天第一次单击=上班，第一次双击=下班（HA 判定是否第一次）
+      - script.execute: paint_rlcd
+  # 打卡键：单击=上班，双击=下班。HA 不在线时先记在本机，连上再同步。
+  # 按下时不要整屏刷新：400x300 @ 1MHz 会吃掉双击的 350ms 窗口。
   - platform: gpio
     id: ext_button_1
     name: Button 1
@@ -516,36 +582,64 @@ binary_sensor:
       mode:
         input: true
         pullup: true
+    filters:
+      - delayed_on_off: 40ms
+    on_press:
+      - lambda: id(punch_ack) = 3;
     on_multi_click:
       - timing:
-          - ON for at most 500ms
-          - OFF for at most 500ms
-          - ON for at most 500ms
+          - ON for at most 2s
+          - OFF for at most 350ms
+          - ON for at most 2s
         then:
           - logger.log:
               level: INFO
               format: "attendance clock out"
-          - lambda: id(pending_out) = true;
-          - component.update: rlcd
-          - homeassistant.event:
-              event: esphome.attendance_clock_out
-          - delay: 3s
           - lambda: |-
-              if (!id(ha_out_set).has_state() || !id(ha_out_set).state) {
-                id(pending_out) = false;
+              auto t = id(rtc_time).now();
+              if (!t.is_valid()) {
+                t = id(sntp_time).now();
               }
-          - component.update: rlcd
+              if (!t.is_valid()) {
+                t = id(ha_time).now();
+              }
+              bool ha_open = id(ha_in_set).has_state() && id(ha_in_set).state
+                             && !(id(ha_out_set).has_state() && id(ha_out_set).state);
+              uint32_t now_ts = t.is_valid() ? (uint32_t) t.timestamp : 0;
+              if (attendance_enqueue(2, id(punch_kind), id(punch_ts), now_ts, ha_open)) {
+                ESP_LOGI("attendance", "clock out stored");
+              } else {
+                ESP_LOGW("attendance", "clock out ignored");
+              }
+          - component.update: work_minutes
+          - script.execute: paint_rlcd
+          - script.execute: flush_punches
       - timing:
-          - ON for at most 500ms
-          - OFF for at least 500ms
+          - ON for at most 2s
+          - OFF for at least 350ms
         then:
           - logger.log:
               level: INFO
               format: "attendance clock in"
-          - homeassistant.event:
-              event: esphome.attendance_clock_in
-          - delay: 1s
-          - component.update: rlcd
+          - lambda: |-
+              auto t = id(rtc_time).now();
+              if (!t.is_valid()) {
+                t = id(sntp_time).now();
+              }
+              if (!t.is_valid()) {
+                t = id(ha_time).now();
+              }
+              bool ha_open = id(ha_in_set).has_state() && id(ha_in_set).state
+                             && !(id(ha_out_set).has_state() && id(ha_out_set).state);
+              uint32_t now_ts = t.is_valid() ? (uint32_t) t.timestamp : 0;
+              if (attendance_enqueue(1, id(punch_kind), id(punch_ts), now_ts, ha_open)) {
+                ESP_LOGI("attendance", "clock in stored");
+              } else {
+                ESP_LOGW("attendance", "clock in ignored");
+              }
+          - component.update: work_minutes
+          - script.execute: paint_rlcd
+          - script.execute: flush_punches
   - platform: gpio
     id: ext_button_2
     name: Button 2
@@ -572,8 +666,10 @@ binary_sensor:
       - lambda: |-
           static bool was_on = false;
           bool now_on = id(desk_occupied).state;
-          bool clocked_in = id(ha_in_set).has_state() && id(ha_in_set).state
-                            && !(id(ha_out_set).has_state() && id(ha_out_set).state);
+          AttendanceView punches = attendance_view(id(punch_kind), id(punch_ts));
+          bool ha_open = id(ha_in_set).has_state() && id(ha_in_set).state
+                         && !(id(ha_out_set).has_state() && id(ha_out_set).state);
+          bool clocked_in = punches.open_in || (ha_open && !punches.closed_out);
           if (now_on) {
             id(rest_timing) = false;
           } else if (was_on && clocked_in) {
@@ -582,40 +678,36 @@ binary_sensor:
           }
           was_on = now_on;
       - component.update: rest_remain
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: ha_sit_active
     entity_id: input_boolean.desk_sit_active
     on_state:
       - component.update: sit_minutes
       - component.update: rest_remain
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: ha_sit_acked
     entity_id: input_boolean.desk_sit_warn_acked
     on_state:
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: ha_rest_ready
     entity_id: input_boolean.desk_rest_ready
     on_state:
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: ha_in_set
     entity_id: input_boolean.attendance_in_set
     on_state:
       - component.update: work_minutes
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: ha_out_set
     entity_id: input_boolean.attendance_out_set
     on_state:
-      - lambda: |-
-          if (id(ha_out_set).has_state() && id(ha_out_set).state) {
-            id(pending_out) = false;
-          }
       - component.update: work_minutes
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: template
     name: RTC Present
     id: rtc_present
@@ -728,15 +820,26 @@ sensor:
     icon: mdi:briefcase-clock
     update_interval: 15s
     lambda: |-
-      if (!id(ha_in_set).has_state() || !id(ha_in_set).state) {
+      AttendanceView punches = attendance_view(id(punch_kind), id(punch_ts));
+      bool ha_in = id(ha_in_set).has_state() && id(ha_in_set).state;
+      bool ha_out = id(ha_out_set).has_state() && id(ha_out_set).state;
+      uint32_t start_u = 0;
+      if (punches.in_ts != 0) {
+        start_u = punches.in_ts;
+      } else if (ha_in && !isnan(id(ha_clock_in_ts).state)) {
+        start_u = (uint32_t) id(ha_clock_in_ts).state;
+      }
+      if (start_u == 0) {
         return {};
       }
-      if (isnan(id(ha_clock_in_ts).state)) {
-        return {};
-      }
-      float end_ts = NAN;
-      if (id(ha_out_set).has_state() && id(ha_out_set).state) {
-        end_ts = id(ha_clock_out_ts).state;
+      uint32_t end_u = 0;
+      bool have_end = false;
+      if (punches.closed_out) {
+        end_u = punches.out_ts;
+        have_end = true;
+      } else if (ha_out && !punches.open_in && !isnan(id(ha_clock_out_ts).state)) {
+        end_u = (uint32_t) id(ha_clock_out_ts).state;
+        have_end = true;
       } else {
         auto t = id(rtc_time).now();
         if (!t.is_valid()) {
@@ -746,13 +849,14 @@ sensor:
           t = id(ha_time).now();
         }
         if (t.is_valid()) {
-          end_ts = t.timestamp;
+          end_u = (uint32_t) t.timestamp;
+          have_end = true;
         }
       }
-      if (isnan(end_ts)) {
+      if (!have_end || end_u < start_u) {
         return {};
       }
-      float mins = (end_ts - id(ha_clock_in_ts).state) / 60.0f;
+      float mins = (float) (end_u - start_u) / 60.0f;
       if (mins < 0.0f) {
         mins = 0.0f;
       }
@@ -779,6 +883,8 @@ sensor:
               last_warn = warn;
               last_shown = shown;
               id(rlcd).update();
+              delay(40);
+              id(rlcd).low_power_mode();
             }
     lambda: |-
       auto t = id(rtc_time).now();
@@ -812,12 +918,6 @@ sensor:
     accuracy_decimals: 0
     icon: mdi:walk
     update_interval: 5s
-    on_value:
-      then:
-        - lambda: |-
-            if (!id(desk_occupied).has_state() || !id(desk_occupied).state) {
-              id(rlcd).update();
-            }
     lambda: |-
       if (id(desk_occupied).has_state() && id(desk_occupied).state) {
         return {};
@@ -839,12 +939,88 @@ sensor:
       }
       return sec;
 
+script:
+  - id: paint_rlcd
+    then:
+      - lambda: |-
+          id(rlcd).update();
+          delay(40);  // high-power frame must finish or black blocks invert
+          id(rlcd).low_power_mode();
+  - id: flush_punches
+    mode: single
+    then:
+      - lambda: id(flush_hold) = false;
+      - while:
+          condition:
+            lambda: |-
+              return !id(flush_hold) && id(ha_api).is_connected()
+                     && attendance_count(id(punch_kind)) > 0;
+          then:
+            - lambda: |-
+                uint8_t kind = id(punch_kind)[0];
+                bool in_known = id(ha_in_set).has_state();
+                bool out_known = id(ha_out_set).has_state();
+                bool in_set = in_known && id(ha_in_set).state;
+                bool out_set = out_known && id(ha_out_set).state;
+                if (attendance_drop_head(kind, id(punch_ts)[0], in_known, in_set, id(ha_clock_in_ts).state, out_known, out_set, id(ha_clock_out_ts).state)) {
+                  attendance_pop(id(punch_kind), id(punch_ts));
+                  id(flush_skip_send) = true;
+                  ESP_LOGI("attendance", "punch already settled on HA");
+                } else {
+                  id(flush_skip_send) = false;
+                }
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(flush_skip_send) && attendance_count(id(punch_kind)) > 0;
+                then:
+                  - if:
+                      condition:
+                        lambda: "return id(punch_kind)[0] == 1;"
+                      then:
+                        - homeassistant.event:
+                            event: esphome.attendance_clock_in
+                            data:
+                              punched_at: !lambda |-
+                                auto tt = ESPTime::from_epoch_local((time_t) id(punch_ts)[0]);
+                                return tt.strftime("%Y-%m-%d %H:%M:%S");
+                  - if:
+                      condition:
+                        lambda: "return id(punch_kind)[0] == 2;"
+                      then:
+                        - homeassistant.event:
+                            event: esphome.attendance_clock_out
+                            data:
+                              punched_at: !lambda |-
+                                auto tt = ESPTime::from_epoch_local((time_t) id(punch_ts)[0]);
+                                return tt.strftime("%Y-%m-%d %H:%M:%S");
+                  - delay: 4s
+                  - lambda: |-
+                      uint8_t kind = id(punch_kind)[0];
+                      bool in_known = id(ha_in_set).has_state();
+                      bool out_known = id(ha_out_set).has_state();
+                      bool in_set = in_known && id(ha_in_set).state;
+                      bool out_set = out_known && id(ha_out_set).state;
+                      if (attendance_drop_head(kind, id(punch_ts)[0], in_known, in_set, id(ha_clock_in_ts).state, out_known, out_set, id(ha_clock_out_ts).state)) {
+                        attendance_pop(id(punch_kind), id(punch_ts));
+                        id(flush_skip_send) = true;
+                        ESP_LOGI("attendance", "punch synced");
+                      } else {
+                        id(flush_hold) = true;
+                        ESP_LOGW("attendance", "punch waiting for HA");
+                      }
+            - if:
+                condition:
+                  lambda: "return id(flush_skip_send);"
+                then:
+                  - component.update: work_minutes
+                  - script.execute: paint_rlcd
+
 interval:
   - interval: 1s
     then:
       - lambda: |-
           bool host = usb_serial_jtag_is_connected();
-          bool was = id(on_mains);
           if (host) {
             id(seen_usb_host) = true;
             id(on_mains) = true;
@@ -857,29 +1033,32 @@ interval:
           if (!id(external_power).has_state() || id(external_power).state != id(on_mains)) {
             id(external_power).publish_state(id(on_mains));
           }
-          if (id(on_mains) != was) {
-            if (id(on_mains)) {
-              id(rlcd).high_power_mode();
-            } else {
-              id(rlcd).low_power_mode();
-            }
-          }
           if (id(rest_timing) && millis() - id(rest_started_ms) >= 120000UL) {
             id(rest_timing) = false;
           }
-          if (id(on_mains) || id(rest_timing)) {
+          bool ack_was = id(punch_ack) > 0;
+          if (id(punch_ack) > 0) {
+            id(punch_ack)--;
+          }
+          bool want_live = id(rest_timing) || id(punch_ack) > 0 || ack_was;
+          auto t = id(rtc_time).now();
+          if (!t.is_valid()) {
+            t = id(sntp_time).now();
+          }
+          int minute = t.is_valid() ? t.minute : -1;
+          static int last_minute = -2;
+          bool minute_tick = minute >= 0 && minute != last_minute;
+          if (minute_tick) {
+            last_minute = minute;
+          }
+          if (want_live || minute_tick) {
             id(rlcd).update();
-          } else {
+            delay(40);
             id(rlcd).low_power_mode();
           }
   - interval: 15s
     then:
-      - if:
-          condition:
-            lambda: "return !id(on_mains) && !id(rest_timing);"
-          then:
-            - component.update: rlcd
-            - lambda: "id(rlcd).low_power_mode();"
+      - script.execute: flush_punches
 
 text_sensor:
   - platform: wifi_info
@@ -895,21 +1074,32 @@ text_sensor:
     id: ha_clock_in
     entity_id: sensor.attendance_clock_in_text
     on_value:
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: ha_clock_out
     entity_id: sensor.attendance_clock_out_text
     on_value:
-      - component.update: rlcd
+      - script.execute: paint_rlcd
+  - platform: homeassistant
+    id: lamp_presence
+    entity_id: binary_sensor.yeelink_cn_2177038445_lamp42_occupancy_p_7_8
+    on_value:
+      - lambda: |-
+          static bool was_down = false;
+          bool down = x == "unavailable" || x == "unknown";
+          if (down != was_down) {
+            was_down = down;
+            id(paint_rlcd).execute();
+          }
   - platform: homeassistant
     id: wx_now
     entity_id: weather.forecast_wo_de_jia
     on_value:
-      - component.update: rlcd
+      - script.execute: paint_rlcd
   - platform: homeassistant
     id: wx_1h
     entity_id: input_text.weather_next_hour_condition
     on_value:
-      - component.update: rlcd
+      - script.execute: paint_rlcd
 
 # 功放 / 语音暂未接入。

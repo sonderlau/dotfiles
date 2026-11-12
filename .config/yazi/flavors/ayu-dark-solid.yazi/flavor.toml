@@ -1,0 +1,139 @@
+# Contrast pass for Ghostty at 85% opacity.
+# Ayu Dark port used #1f6f88 / #5c6773 as if they were light chips.
+# Badges stay black on gold. Dim teal/gray text is lifted to #39bae6 / #bfbdb6.
+#:schema https://yazi-rs.github.io/schemas/theme.json
+
+[mgr]
+# current working dir
+cwd = { fg = "#c2a05c" }
+
+# find
+find_keyword = { fg = "#39bae6", bold = true, italic = true, underline = true }
+find_position = { fg = "#39bae6", bold = true, italic = true }
+
+# Symlink
+symlink_target = { italic = true }
+
+# marker
+marker_copied = { fg = "#0a0e14", bg = "#7e9350" }
+marker_cut = { fg = "#0a0e14", bg = "#a85361" }
+marker_marked = { fg = "#0a0e14", bg = "#39bae6" }
+marker_selected = { fg = "#0a0e14", bg = "#c2a05c" }
+
+# count
+count_copied = { fg = "#0a0e14", bg = "#7e9350" }
+count_cut = { fg = "#0a0e14", bg = "#f07178" }
+count_selected = { fg = "#0a0e14", bg = "#c2a05c" }
+
+# border
+border_symbol = "│"
+border_style  = { fg = "#c2a05c" }
+
+[tabs]
+active   = { fg = "#0a0e14", bg = "#c2a05c", bold = true }
+inactive   = { fg = "#c2a05c", bg = "#0a0e14" }
+sep_inner = { open = "", close = "" }
+sep_outer = { open = "", close = "" }
+
+[mode]
+normal_main = { fg = "#0a0e14", bg = "#c2a05c", bold = true }
+normal_alt = { fg = "#c2c2c2", bg = "#2d3640", bold = true }
+
+select_main = { fg = "#0a0e14", bg = "#39bae6", bold = true }
+select_alt = { fg = "#c2c2c2", bg = "#2d3640", bold = true }
+
+unset_main = { fg = "#0a0e14", bg = "#a85361", bold = true }
+unset_alt = { fg = "#0a0e14", bg = "#a85361", bold = true }
+
+[status]
+overall   = {}
+sep_left  = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+
+# Progress
+progress_label = { fg = "#bfbdb6", bold = true }
+progress_normal = { fg = "#c2a05c", bg = "#0a0e14" }
+progress_error = { fg = "#a85361", bg = "#0a0e14" }
+
+# permissions
+perm_type = { fg = "#c2c2c2" }
+perm_write = { fg = "#a85361" }
+perm_exec = { fg = "#7e9350" }
+perm_read = { fg = "#39bae6" }
+perm_sep = { fg = "#5c6773" }
+
+[select]
+border = { fg = "#c2a05c" }
+active = { fg = "#a85361", bold = true }
+inactive = { fg = "#bfbdb6", bg = "#0a0e14" }
+
+[input]
+border = { fg = "#c2a05c" }
+value = { fg = "#bfbdb6" }
+
+[completion]
+border = { fg = "#c2a05c", bg = "#0a0e14" }
+
+[tasks]
+border = { fg = "#c2a05c" }
+title = { fg = "#c2c2c2" }
+hovered = { fg = "#7e9350", underline = true }
+
+[which]
+cols = 3
+mask = { bg = "#0a0e14" }
+cand = { fg = "#c2a05c" }
+rest = { fg = "#bfbdb6" }
+desc = { fg = "#c2c2c2" }
+separator = " ⯈ "
+separator_style = { fg = "#c2c2c2" }
+
+[help]
+on = { fg = "#c2a05c" }
+run = { fg = "#7e9350" }
+footer = { fg = "#0a0e14", bg = "#c2a05c" }
+
+[notify]
+title_info = { fg = "#7e9350" }
+title_warn = { fg = "#c2a05c" }
+title_error = { fg = "#a85361" }
+
+[filetype]
+rules = [
+	# directories
+	{ url = "*/", fg = "#39bae6" },
+
+	# executables
+	{ url = "*", is = "exec", fg = "#7e9350" },
+
+	# images
+	{ mime = "image/*", fg = "#c2a05c" },
+
+	# media
+	{ mime = "{audio,video}/*", fg = "#7e9350" },
+
+	# archives
+	{ mime = "application/{,g}zip", fg = "#a85361" },
+	{ mime = "application/x-{tar,bzip*,7z-compressed,xz,rar}", fg = "#a85361" },
+
+	# documents
+	{ mime = "application/{pdf,doc,rtf,vnd.*}", fg = "#39bae6" },
+
+	# scripts and code
+	{ mime = "application/{x-shellscript,x-python,x-ruby,x-javascript}", fg = "#c2a05c" },
+	{ mime = "text/x-{c,c++}", fg = "#39bae6" },
+
+	# config files
+	{ url = "*.json", fg = "#c2a05c" },
+	{ url = "*.yml", fg = "#39bae6" },
+	{ url = "*.toml", fg = "#9464b6" },
+
+	# special files
+	{ url = "*", is = "orphan", bg = "#0a0e14" },
+
+	# dummy files
+	{ url = "*", is = "dummy", bg = "#0a0e14" },
+
+	# fallback
+	{ url = "*/", fg = "#39bae6" },
+]

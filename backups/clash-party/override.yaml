@@ -4,3 +4,8 @@ items:
   type: local
   ext: yaml
   global: true
+- id: stable-rate-exit
+  name: Stable Rate Exit
+  type: local
+  ext: js
+  global: true
